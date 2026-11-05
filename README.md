@@ -41,15 +41,15 @@ You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it 
 
 | Rule | Severity | Auto-fix |
 |---|---|---|
-| `missing-path`: a backticked path that doesn't exist next to the file, at the repo root, or anywhere under the file's folder | error | no, it may be a file the agent should create |
+| `missing-path`: a backticked path like `src/old.js` whose top folder exists but the file is gone (skipped in `SKILL.md`, which describes other projects) | error | no, it may be a file the agent should create |
 | `missing-script`: `npm run x` where `x` isn't in `package.json` | error | removes the bullet if nothing else in it works |
 | `contradiction`: "always X" and "never X" in the same file | error | no, you pick |
-| `duplicate`: the same rule twice, ignoring case and punctuation | warn | removes the repeat |
-| `vague`: rules like "write clean code" an agent can't act on | warn | no |
+| `duplicate`: the same bullet twice in one section, ignoring case and punctuation | warn | removes the repeat |
+| `vague`: short rules like "write clean code" an agent can't act on | warn | no |
 | `size`: over 2,000 tokens (warn) or 4,000 (error); `SKILL.md` files load only when used, so 5,000 / 10,000 | warn/error | no |
 | `blank-lines`: runs of blank lines | info | collapses them |
 
-Content inside code fences is ignored.
+Content inside code fences and table rows is ignored for duplicates and contradictions. The rules are tuned to stay quiet when unsure: on anthropics/skills, gemini-cli, codex, adk-python and vercel/ai they flag only oversized files and one real duplicate.
 
 **Scoring:** each file starts at 100 and loses 10 per error, 4 per warning and 1 per info. The repo score is the lowest file score.
 

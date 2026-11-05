@@ -31,18 +31,21 @@ test('a clean file scores 100', () => {
 
 test('flags missing paths, but not ones that exist', () => {
   const root = tempRepo({ 'src/app.js': '' });
-  const result = lint('- Entry point is `src/app.js`\n- Deploy with `scripts/deploy.sh`\n', root);
+  const result = lint('- Entry point is `src/app.js`\n- Old entry was `src/old.js`\n', root);
   assert.deepEqual(rules(result), ['missing-path']);
   assert.equal(result.issues[0].line, 2);
   assert.equal(result.issues[0].remove, undefined, 'may be a file the agent should create');
 });
 
-test('finds files named by bare name or partial path anywhere under the file folder', () => {
-  const root = tempRepo({ 'skills/x/scripts/gen.cjs': '', 'skills/x/data/icons.csv': '' });
-  const result = lintText('- Run `gen.cjs`\n- Read `data/icons.csv`\n- Read `other.csv`\n', {
-    fileDir: join(root, 'skills/x'), root, scripts: null,
-  });
-  assert.deepEqual(result.issues.map((i) => i.message), ['references `other.csv`, which does not exist']);
+test('only checks paths whose top folder exists', () => {
+  const root = tempRepo({ 'src/app.js': '' });
+  const text = '- `kebab-case.ts`, `client.beta.files`, `next/root-params`, `scripts/example.py`, `node_modules/x/y.js`\n';
+  assert.deepEqual(rules(lint(text, root)), []);
+});
+
+test('skips path checks in SKILL.md, which describes other projects', () => {
+  const root = tempRepo({ 'src/app.js': '', 'skills/x/SKILL.md': '- Read `src/missing.js`\n' });
+  assert.deepEqual(lintFile(join(root, 'skills/x/SKILL.md'), root).issues, []);
 });
 
 test('SKILL.md files get a bigger size budget', () => {
@@ -72,6 +75,24 @@ test('removes later duplicates, ignoring case and punctuation', () => {
   const result = lint(text);
   assert.deepEqual(rules(result), ['duplicate']);
   assert.equal(applyFixes(text, result.issues), '- Always run the tests first.\n- Something else entirely here\n');
+});
+
+test('only flags duplicate bullets within one section', () => {
+  const text = '## A\n- Seed display on screen\n**Must include this:**\n## B\n- Seed display on screen\n**Must include this:**\n';
+  assert.deepEqual(rules(lint(text)), []);
+});
+
+test('does not treat matching open and close tags as duplicates', () => {
+  assert.deepEqual(rules(lint('<adding-new-model>\nSteps go here.\n</adding-new-model>\n')), []);
+});
+
+test('ignores polarity without explicit always/never', () => {
+  assert.deepEqual(rules(lint('Allowed augmentations:\n\nNot allowed augmentations:\n')), []);
+});
+
+test('ignores vague phrases inside a specific instruction', () => {
+  const text = '- Follow best practices for the payments module by running the contract tests first\n';
+  assert.deepEqual(rules(lint(text)), []);
 });
 
 test('does not treat repeated table headers as duplicates', () => {
@@ -132,7 +153,7 @@ test('badge color follows score', () => {
 const cli = (root, ...args) => spawnSync('node', [BIN, ...args], { cwd: root, encoding: 'utf8' });
 
 test('cli: --min-score fails the build and --json reports issues', () => {
-  const root = tempRepo({ 'CLAUDE.md': '- See `gone.md`\n' });
+  const root = tempRepo({ 'CLAUDE.md': '- See `docs/gone.md`\n', 'docs/a.md': '' });
   assert.equal(cli(root, '--min-score', '95').status, 1);
   const json = JSON.parse(cli(root, '--json').stdout);
   assert.equal(json.score, 90);
@@ -153,6 +174,10 @@ test('cli: init creates a starter that scores 100 and refuses to overwrite', () 
   assert.match(readFileSync(join(root, 'AGENTS.md'), 'utf8'), /npm run lint/);
   assert.equal(JSON.parse(cli(root, '--json').stdout).score, 100);
   assert.equal(cli(root, 'init').status, 2);
+});
+
+test('cli: --json prints valid JSON when no files are found', () => {
+  assert.deepEqual(JSON.parse(cli(tempRepo({}), '--json').stdout), { score: 100, files: [] });
 });
 
 test('cli: unknown file is a usage error', () => {

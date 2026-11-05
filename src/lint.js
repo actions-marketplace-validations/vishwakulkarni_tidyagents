@@ -16,16 +16,18 @@ const VAGUE_PHRASES = [
   'write clean code',
   'follow best practices',
   'use best practices',
-  'be careful',
   'high quality code',
   'use common sense',
   'keep it clean',
 ];
+const VAGUE_MAX_WORDS = 8;
 
 const BULLET = /^\s*(?:[-*+]|\d+\.)\s+/;
 const CODE_SPAN = /`([^`\n]+)`/g;
 const RUN_SCRIPT = /\b(?:npm|pnpm|yarn|bun) run ([\w:.-]+)/g;
-const NEGATION = /\b(never|not|dont)\b/;
+// Contradictions are only judged between explicit rules ("always X" / "never X").
+const NEGATIVE = /\b(never|dont|do not)\b/;
+const POSITIVE = /\b(always|must)\b/;
 const POLARITY_WORDS = /\b(always|never|must|should|not|do|dont|you|please)\b/g;
 
 export function findAgentFiles(root) {
@@ -58,10 +60,16 @@ function normalize(line) {
     .trim();
 }
 
-function looksLikePath(span) {
-  if (!/^[\w.\-/]+$/.test(span)) return false;
-  if (span.startsWith('/') || span.startsWith('-') || span.includes('path/to')) return false;
-  return span.includes('/') || /\.[a-z]{1,5}$/i.test(span);
+// A reference has rotted when its top folder exists but the rest is gone. Bare
+// names, package names, URLs and example paths have no existing top folder, so
+// they return null (not checkable) instead of a false alarm.
+function pathExists(span, bases) {
+  const path = span.replace(/^\.\//, '').replace(/\/$/, '');
+  if (!/^[\w.\-/]+$/.test(path) || !path.includes('/') || path.startsWith('node_modules/')) return null;
+  const top = path.split('/')[0];
+  const anchored = top ? bases.filter((base) => existsSync(join(base, top))) : [];
+  if (!anchored.length) return null;
+  return anchored.some((base) => existsSync(join(base, path)));
 }
 
 function splitLines(text) {
@@ -80,36 +88,12 @@ function fencedLines(lines) {
   });
 }
 
-// Every file and folder under dir as a relative path, so a file can name
-// `scripts/x.py` or just `x.py` without spelling out where it lives.
-function listPaths(dir) {
-  const paths = [];
-  const walk = (sub) => {
-    for (const entry of readdirSync(join(dir, sub), { withFileTypes: true })) {
-      if (SKIP_DIRS.has(entry.name) || entry.name.startsWith('.')) continue;
-      const rel = sub ? `${sub}/${entry.name}` : entry.name;
-      paths.push(rel);
-      if (entry.isDirectory()) walk(rel);
-    }
-  };
-  walk('');
-  return paths;
-}
-
 export function lintText(text, { fileDir, root, scripts, onDemand = false }) {
   const lines = splitLines(text);
   const fenced = fencedLines(lines);
   const issues = [];
   const add = (rule, severity, index, message, remove) =>
     issues.push({ rule, severity, line: index === null ? null : index + 1, message, remove });
-
-  let nearby;
-  const pathExists = (candidate) => {
-    if ([fileDir, root].some((base) => existsSync(join(base, candidate)))) return true;
-    // Skills often use files from sibling skills, so search the whole skills folder.
-    nearby ??= listPaths(onDemand ? dirname(fileDir) : fileDir);
-    return nearby.some((p) => p.endsWith(`/${candidate}`));
-  };
 
   // Skills load only when used, so they get a bigger budget than always-loaded files.
   const [warnAt, errorAt] = onDemand ? [SKILL_TOKENS_WARN, SKILL_TOKENS_ERROR] : [TOKENS_WARN, TOKENS_ERROR];
@@ -120,7 +104,7 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false }) {
       `${tokens.toLocaleString('en-US')} tokens, ${when} (aim for under ${warnAt.toLocaleString('en-US')})`);
   }
 
-  const seen = new Map();
+  let seen = new Map();
   const polarity = new Map();
   let blankRun = [];
 
@@ -137,15 +121,15 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false }) {
     flushBlanks();
 
     const isHeading = /^\s*#/.test(line);
+    if (isHeading) seen = new Map();
 
-    const broken = [];
     let workingRefs = 0;
-    for (const [, span] of line.matchAll(CODE_SPAN)) {
-      const candidate = span.replace(/^\.\//, '').replace(/\/$/, '');
-      if (!looksLikePath(candidate)) continue;
+    // Skills describe whatever project they run in, so their paths aren't checked.
+    for (const [, span] of onDemand ? [] : line.matchAll(CODE_SPAN)) {
+      const exists = pathExists(span, [fileDir, root]);
+      if (exists) workingRefs++;
       // Never auto-removed: the line may describe a file the agent is meant to create.
-      if (pathExists(candidate)) workingRefs++;
-      else add('missing-path', 'error', i, `references \`${span}\`, which does not exist`);
+      else if (exists === false) add('missing-path', 'error', i, `references \`${span}\`, which does not exist`);
     }
     if (scripts) {
       const missing = [];
@@ -158,25 +142,29 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false }) {
       for (const name of missing) add('missing-script', 'error', i, `runs script "${name}", which is not in package.json`, removable);
     }
 
-    const lower = line.toLowerCase();
-    for (const phrase of VAGUE_PHRASES) {
-      if (lower.includes(phrase)) add('vague', 'warn', i, `"${phrase}" is too vague for an agent to act on; name the concrete command or rule`);
-    }
-
     // Table rows repeat legitimately (shared headers like "| Rule | Do | Don't |").
     if (isHeading || /^\s*\|/.test(line)) return;
     const norm = normalize(line);
-    if (norm.length < 12) return;
 
-    if (seen.has(norm)) {
-      add('duplicate', 'warn', i, `repeats line ${seen.get(norm) + 1}`, [i]);
-    } else {
-      seen.set(norm, i);
+    // A short line that is nothing but a platitude; longer lines usually go on to be specific.
+    if (norm.split(' ').length <= VAGUE_MAX_WORDS) {
+      for (const phrase of VAGUE_PHRASES) {
+        if (norm.includes(phrase)) add('vague', 'warn', i, `"${phrase}" is too vague for an agent to act on; name the concrete command or rule`);
+      }
     }
 
+    if (norm.length < 12) return;
+
+    // Only bullets repeated within one section: across sections, repeats are usually deliberate.
+    if (BULLET.test(line)) {
+      if (seen.has(norm)) add('duplicate', 'warn', i, `repeats line ${seen.get(norm) + 1} in the same section`, [i]);
+      else seen.set(norm, i);
+    }
+
+    const negative = NEGATIVE.test(norm);
+    if (!negative && !POSITIVE.test(norm)) return;
     const subject = norm.replace(POLARITY_WORDS, ' ').replace(/\s+/g, ' ').trim();
     if (subject.length < 8) return;
-    const negative = NEGATION.test(norm);
     const other = polarity.get(subject);
     if (other && other.negative !== negative) {
       add('contradiction', 'error', i, `contradicts line ${other.index + 1}; keep one of them`);

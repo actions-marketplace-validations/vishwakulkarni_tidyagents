@@ -181,7 +181,7 @@ export async function main(argv) {
   if (command === 'init') return init(root), 0;
 
   const results = lintTargets(positionals, root);
-  if (!results.length) {
+  if (!results.length && !(command === 'check' && opts.json)) {
     console.log(`No agent instruction files found. Run ${bold('tidyagents init')} to create one.`);
     return command === 'badge' ? 1 : 0;
   }
