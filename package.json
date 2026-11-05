@@ -1,0 +1,29 @@
+{
+  "name": "tidyagents",
+  "version": "0.1.0",
+  "description": "Lint, score and tidy AI agent instruction files: AGENTS.md, CLAUDE.md, .cursorrules and more.",
+  "type": "module",
+  "bin": {
+    "tidyagents": "bin/tidyagents.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.3"
+  },
+  "keywords": [
+    "agents.md",
+    "claude.md",
+    "cursorrules",
+    "ai",
+    "agents",
+    "lint",
+    "cli"
+  ],
+  "license": "MIT"
+}
