@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join, dirname, relative, isAbsolute } from 'node:path';
+import { join, basename, dirname, relative, isAbsolute } from 'node:path';
 
 const AGENT_FILE_NAMES = new Set(['AGENTS.md', 'CLAUDE.md', 'GEMINI.md', 'SKILL.md']);
 const ROOT_ONLY_FILES = ['.cursorrules', '.github/copilot-instructions.md'];
@@ -8,6 +8,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'vendor', 'target'])
 const PENALTY = { error: 10, warn: 4, info: 1 };
 const TOKENS_WARN = 2000;
 const TOKENS_ERROR = 4000;
+const SKILL_TOKENS_WARN = 5000;
+const SKILL_TOKENS_ERROR = 10000;
 
 const VAGUE_PHRASES = [
   'write good code',
@@ -78,18 +80,44 @@ function fencedLines(lines) {
   });
 }
 
-export function lintText(text, { fileDir, root, scripts }) {
+// Every file and folder under dir as a relative path, so a file can name
+// `scripts/x.py` or just `x.py` without spelling out where it lives.
+function listPaths(dir) {
+  const paths = [];
+  const walk = (sub) => {
+    for (const entry of readdirSync(join(dir, sub), { withFileTypes: true })) {
+      if (SKIP_DIRS.has(entry.name) || entry.name.startsWith('.')) continue;
+      const rel = sub ? `${sub}/${entry.name}` : entry.name;
+      paths.push(rel);
+      if (entry.isDirectory()) walk(rel);
+    }
+  };
+  walk('');
+  return paths;
+}
+
+export function lintText(text, { fileDir, root, scripts, onDemand = false }) {
   const lines = splitLines(text);
   const fenced = fencedLines(lines);
   const issues = [];
   const add = (rule, severity, index, message, remove) =>
     issues.push({ rule, severity, line: index === null ? null : index + 1, message, remove });
 
+  let nearby;
+  const pathExists = (candidate) => {
+    if ([fileDir, root].some((base) => existsSync(join(base, candidate)))) return true;
+    // Skills often use files from sibling skills, so search the whole skills folder.
+    nearby ??= listPaths(onDemand ? dirname(fileDir) : fileDir);
+    return nearby.some((p) => p.endsWith(`/${candidate}`));
+  };
+
+  // Skills load only when used, so they get a bigger budget than always-loaded files.
+  const [warnAt, errorAt] = onDemand ? [SKILL_TOKENS_WARN, SKILL_TOKENS_ERROR] : [TOKENS_WARN, TOKENS_ERROR];
   const tokens = estimateTokens(text);
-  if (tokens > TOKENS_ERROR) {
-    add('size', 'error', null, `${tokens.toLocaleString('en-US')} tokens, loaded into every agent session (aim for under ${TOKENS_WARN.toLocaleString('en-US')})`);
-  } else if (tokens > TOKENS_WARN) {
-    add('size', 'warn', null, `${tokens.toLocaleString('en-US')} tokens, loaded into every agent session (aim for under ${TOKENS_WARN.toLocaleString('en-US')})`);
+  if (tokens > warnAt) {
+    const when = onDemand ? 'loaded every time this skill is used' : 'loaded into every agent session';
+    add('size', tokens > errorAt ? 'error' : 'warn', null,
+      `${tokens.toLocaleString('en-US')} tokens, ${when} (aim for under ${warnAt.toLocaleString('en-US')})`);
   }
 
   const seen = new Map();
@@ -115,25 +143,28 @@ export function lintText(text, { fileDir, root, scripts }) {
     for (const [, span] of line.matchAll(CODE_SPAN)) {
       const candidate = span.replace(/^\.\//, '').replace(/\/$/, '');
       if (!looksLikePath(candidate)) continue;
-      if ([fileDir, root].some((base) => existsSync(join(base, candidate)))) workingRefs++;
-      else broken.push(['missing-path', `references \`${span}\`, which does not exist`]);
+      // Never auto-removed: the line may describe a file the agent is meant to create.
+      if (pathExists(candidate)) workingRefs++;
+      else add('missing-path', 'error', i, `references \`${span}\`, which does not exist`);
     }
     if (scripts) {
+      const missing = [];
       for (const [, name] of line.matchAll(RUN_SCRIPT)) {
         if (name in scripts) workingRefs++;
-        else broken.push(['missing-script', `runs script "${name}", which is not in package.json`]);
+        else missing.push(name);
       }
+      // Only drop a bullet when everything it points at is gone; otherwise a human edits it.
+      const removable = BULLET.test(line) && workingRefs === 0 ? [i] : undefined;
+      for (const name of missing) add('missing-script', 'error', i, `runs script "${name}", which is not in package.json`, removable);
     }
-    // Only drop a bullet when everything it points at is gone; otherwise a human edits it.
-    const removable = BULLET.test(line) && workingRefs === 0 ? [i] : undefined;
-    for (const [rule, message] of broken) add(rule, 'error', i, message, removable);
 
     const lower = line.toLowerCase();
     for (const phrase of VAGUE_PHRASES) {
       if (lower.includes(phrase)) add('vague', 'warn', i, `"${phrase}" is too vague for an agent to act on; name the concrete command or rule`);
     }
 
-    if (isHeading) return;
+    // Table rows repeat legitimately (shared headers like "| Rule | Do | Don't |").
+    if (isHeading || /^\s*\|/.test(line)) return;
     const norm = normalize(line);
     if (norm.length < 12) return;
 
@@ -177,9 +208,13 @@ export function readScripts(root) {
   }
 }
 
+export function lintOptions(path, root) {
+  return { fileDir: dirname(path), root, scripts: readScripts(root), onDemand: basename(path) === 'SKILL.md' };
+}
+
 export function lintFile(path, root) {
   const text = readFileSync(path, 'utf8');
-  const result = lintText(text, { fileDir: dirname(path), root, scripts: readScripts(root) });
+  const result = lintText(text, lintOptions(path, root));
   const file = isAbsolute(path) ? relative(root, path) : path;
   return { file, path, text, ...result };
 }

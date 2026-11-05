@@ -8,14 +8,14 @@ Agent files grow quietly. Rules get duplicated, scripts get renamed, files get d
 $ npx tidyagents
 
 CLAUDE.md  57/100  (70 tokens)
-  ✗ line 6   references `scripts/deploy.sh`, which does not exist  [missing-path] fixable
+  ✗ line 6   references `scripts/deploy.sh`, which does not exist  [missing-path]
   ✗ line 7   runs script "typecheck", which is not in package.json  [missing-script]
   · line 9   3 blank lines in a row  [blank-lines] fixable
   ⚠ line 11  "follow best practices" is too vague for an agent to act on  [vague]
   ✗ line 12  contradicts line 4; keep one of them  [contradiction]
   ⚠ line 13  repeats line 5  [duplicate] fixable
 
-Score: 57/100  ·  3 fixable, run tidyagents fix
+Score: 57/100  ·  2 fixable, run tidyagents fix
 ```
 
 Zero dependencies, no AI calls, works offline.
@@ -41,12 +41,12 @@ You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it 
 
 | Rule | Severity | Auto-fix |
 |---|---|---|
-| `missing-path`: a backticked path that doesn't exist | error | removes the bullet if nothing else in it works |
-| `missing-script`: `npm run x` where `x` isn't in `package.json` | error | same as above |
+| `missing-path`: a backticked path that doesn't exist next to the file, at the repo root, or anywhere under the file's folder | error | no, it may be a file the agent should create |
+| `missing-script`: `npm run x` where `x` isn't in `package.json` | error | removes the bullet if nothing else in it works |
 | `contradiction`: "always X" and "never X" in the same file | error | no, you pick |
 | `duplicate`: the same rule twice, ignoring case and punctuation | warn | removes the repeat |
 | `vague`: rules like "write clean code" an agent can't act on | warn | no |
-| `size`: over 2,000 tokens (warn) or 4,000 (error) | warn/error | no |
+| `size`: over 2,000 tokens (warn) or 4,000 (error); `SKILL.md` files load only when used, so 5,000 / 10,000 | warn/error | no |
 | `blank-lines`: runs of blank lines | info | collapses them |
 
 Content inside code fences is ignored.

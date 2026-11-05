@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { lintText, applyFixes, findAgentFiles, badgeMarkdown } from '../src/lint.js';
+import { lintText, lintFile, applyFixes, findAgentFiles, badgeMarkdown } from '../src/lint.js';
 
 const BIN = new URL('../bin/tidyagents.js', import.meta.url).pathname;
 
@@ -34,13 +34,20 @@ test('flags missing paths, but not ones that exist', () => {
   const result = lint('- Entry point is `src/app.js`\n- Deploy with `scripts/deploy.sh`\n', root);
   assert.deepEqual(rules(result), ['missing-path']);
   assert.equal(result.issues[0].line, 2);
-  assert.deepEqual(result.issues[0].remove, [1]);
+  assert.equal(result.issues[0].remove, undefined, 'may be a file the agent should create');
 });
 
-test('missing path in a paragraph is flagged but not auto-removed', () => {
-  const result = lint('See `docs/gone.md` for the full guide and other notes.\n');
-  assert.equal(result.issues[0].rule, 'missing-path');
-  assert.equal(result.issues[0].remove, undefined);
+test('finds files named by bare name or partial path anywhere under the file folder', () => {
+  const root = tempRepo({ 'skills/x/scripts/gen.cjs': '', 'skills/x/data/icons.csv': '' });
+  const result = lintText('- Run `gen.cjs`\n- Read `data/icons.csv`\n- Read `other.csv`\n', {
+    fileDir: join(root, 'skills/x'), root, scripts: null,
+  });
+  assert.deepEqual(result.issues.map((i) => i.message), ['references `other.csv`, which does not exist']);
+});
+
+test('SKILL.md files get a bigger size budget', () => {
+  const root = tempRepo({ 'skills/x/SKILL.md': `${'Some unique sentence number '.repeat(400)}\n` });
+  assert.deepEqual(lintFile(join(root, 'skills/x/SKILL.md'), root).issues, []);
 });
 
 test('ignores code spans that are not paths', () => {
@@ -65,6 +72,11 @@ test('removes later duplicates, ignoring case and punctuation', () => {
   const result = lint(text);
   assert.deepEqual(rules(result), ['duplicate']);
   assert.equal(applyFixes(text, result.issues), '- Always run the tests first.\n- Something else entirely here\n');
+});
+
+test('does not treat repeated table headers as duplicates', () => {
+  const table = '| Rule | Do | Dont do this |\n|---|---|---|\n| a | b | c |\n';
+  assert.deepEqual(rules(lint(`${table}\n${table}`)), []);
 });
 
 test('flags contradictions without fixing them', () => {
@@ -124,7 +136,7 @@ test('cli: --min-score fails the build and --json reports issues', () => {
   assert.equal(cli(root, '--min-score', '95').status, 1);
   const json = JSON.parse(cli(root, '--json').stdout);
   assert.equal(json.score, 90);
-  assert.equal(json.files[0].issues[0].fixable, true);
+  assert.equal(json.files[0].issues[0].fixable, false);
 });
 
 test('cli: fix is a dry run without --yes, and writes with it', () => {

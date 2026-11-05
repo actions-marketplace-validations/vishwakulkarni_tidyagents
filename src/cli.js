@@ -1,9 +1,9 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { createInterface } from 'node:readline/promises';
 import {
-  findAgentFiles, lintFile, lintText, applyFixes, overallScore, badgeMarkdown, readScripts,
+  findAgentFiles, lintFile, lintOptions, lintText, applyFixes, overallScore, badgeMarkdown, readScripts,
 } from './lint.js';
 
 const COMMANDS = new Set(['check', 'fix', 'badge', 'init']);
@@ -85,7 +85,7 @@ async function fix(results, opts, root) {
     const fixable = r.issues.filter((i) => i.remove);
     if (!fixable.length) continue;
     const fixed = applyFixes(r.text, fixable);
-    const after = lintText(fixed, { fileDir: dirname(r.path), root, scripts: readScripts(root) });
+    const after = lintText(fixed, lintOptions(r.path, root));
     changes.push({ r, fixed, after, count: fixable.length });
 
     console.log(`\n${bold(r.file)}: ${r.score} → ${after.score}  ${dim(`(${r.tokens} → ${after.tokens} tokens)`)}`);
