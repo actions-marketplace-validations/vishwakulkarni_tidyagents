@@ -43,6 +43,21 @@ test('only checks paths whose top folder exists', () => {
   assert.deepEqual(rules(lint(text, root)), []);
 });
 
+test('skips gitignored paths, files to create, examples and elided paths', () => {
+  const root = tempRepo({ 'src/app.js': '', 'web/index.html': '', '.gitignore': 'dist/\n' });
+  spawnSync('git', ['init', '-q'], { cwd: root });
+  mkdirSync(join(root, 'dist'));
+  const text = [
+    '- Build output goes to `dist/bundle.js`',
+    '- The web build lands in `web/dist`',
+    '- Create `src/parsers/newtool.ts` for a new parser',
+    '- Exchanges live under `src/<x>/` (e.g., `src/alpaca/`)',
+    '- Tests mirror `src/.../thing.ts`',
+    '- Hooks run from `.git/hooks/pre-commit`',
+  ].join('\n');
+  assert.deepEqual(rules(lint(`${text}\n`, root)), []);
+});
+
 test('skips path checks in SKILL.md, which describes other projects', () => {
   const root = tempRepo({ 'src/app.js': '', 'skills/x/SKILL.md': '- Read `src/missing.js`\n' });
   assert.deepEqual(lintFile(join(root, 'skills/x/SKILL.md'), root).issues, []);
@@ -65,6 +80,15 @@ test('flags npm scripts missing from package.json', () => {
   assert.equal(result.issues[0].remove, undefined, 'line still has a working command, so keep it');
 });
 
+test('accepts scripts from any package.json in a monorepo, and ignores flags', () => {
+  const root = tempRepo({
+    'package.json': '{"scripts":{}}',
+    'packages/web/package.json': '{"scripts":{"type-check":"tsc"}}',
+    'AGENTS.md': '- Run `pnpm run type-check`, or `npm run -T x` and `npm run test:` patterns\n',
+  });
+  assert.deepEqual(lintFile(join(root, 'AGENTS.md'), root).issues, []);
+});
+
 test('removes a bullet whose only reference is broken', () => {
   const result = lint('- Run `npm run deploy`\n', undefined, {});
   assert.deepEqual(result.issues[0].remove, [0]);
@@ -80,6 +104,15 @@ test('removes later duplicates, ignoring case and punctuation', () => {
 test('only flags duplicate bullets within one section', () => {
   const text = '## A\n- Seed display on screen\n**Must include this:**\n## B\n- Seed display on screen\n**Must include this:**\n';
   assert.deepEqual(rules(lint(text)), []);
+});
+
+test('ignores nested bullets and bold-label sections for duplicates', () => {
+  const text = '- List page\n  - Root component\n- Edit page\n  - Root component\n\n**established:**\n- Total feedback at least three\n\n**deprecated:**\n- Total feedback at least three\n';
+  assert.deepEqual(rules(lint(text)), []);
+});
+
+test('only checks npm and pnpm scripts, since yarn and bun also run binaries', () => {
+  assert.deepEqual(rules(lint('- Run `yarn run tsc` and `bun run tool/x.ts`\n', undefined, {})), []);
 });
 
 test('does not treat matching open and close tags as duplicates', () => {

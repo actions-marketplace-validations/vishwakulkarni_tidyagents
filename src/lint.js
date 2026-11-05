@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join, basename, dirname, relative, isAbsolute } from 'node:path';
 
 const AGENT_FILE_NAMES = new Set(['AGENTS.md', 'CLAUDE.md', 'GEMINI.md', 'SKILL.md']);
@@ -24,26 +25,40 @@ const VAGUE_MAX_WORDS = 8;
 
 const BULLET = /^\s*(?:[-*+]|\d+\.)\s+/;
 const CODE_SPAN = /`([^`\n]+)`/g;
-const RUN_SCRIPT = /\b(?:npm|pnpm|yarn|bun) run ([\w:.-]+)/g;
+// Only npm and pnpm: `yarn run` and `bun run` also run binaries and files, not just scripts.
+// Script names start and end with a word character, so "-T" and "test:" (a prefix) are skipped.
+const RUN_SCRIPT = /\b(?:npm|pnpm) run (\w(?:[\w:.-]*\w)?)(?![\w:-])/g;
+// Paths outside the repo's files, or elided examples like `src/.../x`.
+const UNCHECKABLE_PATH = /^\.\.?\/|^\.git\/|^node_modules\/|\.\.\./;
+// Lines about files to create, examples or optional files name paths that needn't exist.
+const NOT_A_REFERENCE = /\be\.g\.|\b(create[sd]?|generated?|if present|if it exists)\b/i;
+const TOP_BULLET = /^(?:[-*+]|\d+\.)\s+/;
+// A line that is only a bold label ("**proven:**") starts a new section, like a heading.
+const BOLD_LABEL = /^\s*\*\*[^*]+\*\*:?\s*$/;
 // Contradictions are only judged between explicit rules ("always X" / "never X").
 const NEGATIVE = /\b(never|dont|do not)\b/;
 const POSITIVE = /\b(always|must)\b/;
 const POLARITY_WORDS = /\b(always|never|must|should|not|do|dont|you|please)\b/g;
 
-export function findAgentFiles(root) {
-  const found = ROOT_ONLY_FILES.map((p) => join(root, p)).filter((p) => existsSync(p));
+function findFiles(root, names) {
+  const found = [];
   const walk = (dir) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.isDirectory()) {
         const hidden = entry.name.startsWith('.') && entry.name !== '.claude';
         if (!hidden && !SKIP_DIRS.has(entry.name)) walk(join(dir, entry.name));
-      } else if (entry.isFile() && AGENT_FILE_NAMES.has(entry.name)) {
+      } else if (entry.isFile() && names.has(entry.name)) {
         found.push(join(dir, entry.name));
       }
     }
   };
   walk(root);
-  return found.sort();
+  return found;
+}
+
+export function findAgentFiles(root) {
+  const rootOnly = ROOT_ONLY_FILES.map((p) => join(root, p)).filter((p) => existsSync(p));
+  return [...rootOnly, ...findFiles(root, AGENT_FILE_NAMES)].sort();
 }
 
 export function estimateTokens(text) {
@@ -65,11 +80,20 @@ function normalize(line) {
 // they return null (not checkable) instead of a false alarm.
 function pathExists(span, bases) {
   const path = span.replace(/^\.\//, '').replace(/\/$/, '');
-  if (!/^[\w.\-/]+$/.test(path) || !path.includes('/') || path.startsWith('node_modules/')) return null;
+  if (!/^[\w.\-/]+$/.test(path) || !path.includes('/') || UNCHECKABLE_PATH.test(path)) return null;
   const top = path.split('/')[0];
   const anchored = top ? bases.filter((base) => existsSync(join(base, top))) : [];
   if (!anchored.length) return null;
-  return anchored.some((base) => existsSync(join(base, path)));
+  if (anchored.some((base) => existsSync(join(base, path)))) return true;
+  // Build output, caches and local config are gitignored: absent from a fresh clone by design.
+  return anchored.some((base) => isGitIgnored(base, path)) ? null : false;
+}
+
+// The trailing-slash form matches folder patterns like `dist/` for folders that don't exist.
+function isGitIgnored(base, path) {
+  return [path, `${path}/`].some(
+    (p) => spawnSync('git', ['check-ignore', '-q', '--no-index', p], { cwd: base }).status === 0,
+  );
 }
 
 function splitLines(text) {
@@ -121,11 +145,12 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false }) {
     flushBlanks();
 
     const isHeading = /^\s*#/.test(line);
-    if (isHeading) seen = new Map();
+    if (isHeading || BOLD_LABEL.test(line)) seen = new Map();
 
     let workingRefs = 0;
     // Skills describe whatever project they run in, so their paths aren't checked.
-    for (const [, span] of onDemand ? [] : line.matchAll(CODE_SPAN)) {
+    const checkPaths = !onDemand && !NOT_A_REFERENCE.test(line);
+    for (const [, span] of checkPaths ? line.matchAll(CODE_SPAN) : []) {
       const exists = pathExists(span, [fileDir, root]);
       if (exists) workingRefs++;
       // Never auto-removed: the line may describe a file the agent is meant to create.
@@ -155,8 +180,9 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false }) {
 
     if (norm.length < 12) return;
 
-    // Only bullets repeated within one section: across sections, repeats are usually deliberate.
-    if (BULLET.test(line)) {
+    // Only top-level bullets repeated within one section: across sections, or nested
+    // under different parents, repeats are usually deliberate.
+    if (TOP_BULLET.test(line)) {
       if (seen.has(norm)) add('duplicate', 'warn', i, `repeats line ${seen.get(norm) + 1} in the same section`, [i]);
       else seen.set(norm, i);
     }
@@ -186,9 +212,7 @@ export function applyFixes(text, issues) {
   return kept.join(eol) + (/\r?\n$/.test(text) ? eol : '');
 }
 
-export function readScripts(root) {
-  const pkgPath = join(root, 'package.json');
-  if (!existsSync(pkgPath)) return null;
+function readPackageScripts(pkgPath) {
   try {
     return JSON.parse(readFileSync(pkgPath, 'utf8')).scripts ?? {};
   } catch {
@@ -196,8 +220,26 @@ export function readScripts(root) {
   }
 }
 
+export function readScripts(root) {
+  const pkgPath = join(root, 'package.json');
+  return existsSync(pkgPath) ? readPackageScripts(pkgPath) : null;
+}
+
+// In a monorepo an agent file may name any package's script, so a script only
+// counts as missing when no package.json in the repo defines it.
+const repoScripts = new Map();
+function readRepoScripts(root) {
+  if (!repoScripts.has(root)) {
+    const all = findFiles(root, new Set(['package.json'])).map(readPackageScripts).filter(Boolean);
+    repoScripts.set(root, all.length ? Object.assign({}, ...all) : null);
+  }
+  return repoScripts.get(root);
+}
+
 export function lintOptions(path, root) {
-  return { fileDir: dirname(path), root, scripts: readScripts(root), onDemand: basename(path) === 'SKILL.md' };
+  const onDemand = basename(path) === 'SKILL.md';
+  // Skills run inside whatever project uses them, so this repo's scripts don't apply.
+  return { fileDir: dirname(path), root, scripts: onDemand ? null : readRepoScripts(root), onDemand };
 }
 
 export function lintFile(path, root) {
