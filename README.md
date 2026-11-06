@@ -39,7 +39,7 @@ Real fixes found by `tidyagents` in public repos and sent upstream:
 | Repo | File | What was stale | Score | Fix |
 |---|---|---|---|---|
 | mongoose-unique-validator (543★) | `CLAUDE.md` | Whole test layout: tests moved from `.js` files to `.ts` and new folders | **50 → 100** | [PR #169](https://github.com/mongoose-unique-validator/mongoose-unique-validator/pull/169) |
-| joelhooks/swarm-tools (749★) | `AGENTS.md` | Skills folder renamed `.opencode/skills/` → `.opencode/skill/` | **60 → 80** | [PR #212](https://github.com/joelhooks/swarm-tools/pull/212) |
+| joelhooks/swarm-tools (749★) | `AGENTS.md` | Skills folder renamed `.opencode/skills/` → `.opencode/skill/` | **60 → 80** | [PR #212](https://github.com/joelhooks/swarm-tools/pull/212) (auto-closed: repo takes vouched contributors only) |
 | vuepress-theme-plume (497★) | `AGENTS.md` | `ConfigLoader.ts` moved into `features/` | **86 → 96** | [PR #1080](https://github.com/pengzhanbo/vuepress-theme-plume/pull/1080) |
 
 ### Big-name repos
@@ -53,7 +53,7 @@ Real fixes found by `tidyagents` in public repos and sent upstream:
 | google/adk-python | 11 | 100 | clean |
 | openai/codex | 8 | 100 | clean |
 
-Scanned November 2026 with tidyagents 0.1.0. Every finding in these tables was checked by hand.
+Scanned November 2026 with tidyagents 0.1.0. Every finding in these tables was checked by hand. Full write-up: [27% of popular repos send their AI agent to files that don't exist](docs/state-of-agent-files-2026.md).
 
 ## Quick start
 
