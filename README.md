@@ -1,5 +1,6 @@
 # tidyagents
 
+[![npm](https://img.shields.io/npm/v/tidyagents)](https://www.npmjs.com/package/tidyagents)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 ![Dependencies: 0](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![Node >=18.3](https://img.shields.io/badge/node-%3E%3D18.3-blue)
@@ -11,7 +12,7 @@ Agent files grow quietly. Code moves, files get renamed, and the instructions yo
 <p align="center"><img src="docs/demo.gif" alt="tidyagents scores a CLAUDE.md at 71, then fix removes a dead script, a blank line and a duplicate to reach 86" width="768"></p>
 
 ```bash
-npx github:vishwakulkarni/tidyagents
+npx tidyagents
 ```
 
 ## The numbers
@@ -57,7 +58,7 @@ Scanned November 2026 with tidyagents 0.1.0. Every finding in these tables was c
 ## Quick start
 
 ```bash
-npx github:vishwakulkarni/tidyagents
+npx tidyagents
 ```
 
 ```
@@ -95,19 +96,17 @@ Every engineer's agent reads the same instruction files at the start of every se
 
 ### Roll it out
 
-1. Run `npx github:vishwakulkarni/tidyagents` in your largest repo and fix what it finds.
+1. Run `npx tidyagents` in your largest repo and fix what it finds.
 2. Add the [GitHub Action](#use-in-ci) with `min-score: 80` so new rot fails the pull request.
 3. Track it across repos with `--json`:
 
 ```bash
 for repo in */; do
-  (cd "$repo" && npx -y github:vishwakulkarni/tidyagents --json | jq -c --arg r "$repo" '{repo: $r, score}')
+  (cd "$repo" && npx -y tidyagents --json | jq -c --arg r "$repo" '{repo: $r, score}')
 done
 ```
 
 ## Commands
-
-The examples below use `tidyagents`; until it's on npm, run it as `npx github:vishwakulkarni/tidyagents`.
 
 ```bash
 tidyagents              # score every agent file and list issues
@@ -154,14 +153,14 @@ jobs:
   tidyagents:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: vishwakulkarni/tidyagents@v1
         with:
           min-score: 80              # default 80
           # working-directory: .     # folder to check
 ```
 
-The action runs on the runner's own Node with no install step. On any other CI, run `npx -y github:vishwakulkarni/tidyagents --min-score 80`.
+The action runs on the runner's own Node with no install step. On any other CI, run `npx -y tidyagents --min-score 80`.
 
 ## Badge
 
