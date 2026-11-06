@@ -1,20 +1,37 @@
 # tidyagents
 
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+![Dependencies: 0](https://img.shields.io/badge/dependencies-0-brightgreen)
+![Node >=18.3](https://img.shields.io/badge/node-%3E%3D18.3-blue)
+
 Lint, score and tidy your AI agent instruction files: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `SKILL.md`, `.cursorrules` and `.github/copilot-instructions.md`.
 
 Agent files grow quietly. Code moves, files get renamed, and the instructions your agent reads every session keep pointing at things that no longer exist. `tidyagents` finds the rot and cleans up what's safe to clean.
 
+```bash
+npx github:vishwakulkarni/tidyagents
+```
+
 ## The numbers
 
-We ran `tidyagents` on **67 popular open-source repos** (300+ stars, actively maintained, 418 agent files, ~851k tokens of agent instructions):
+We ran `tidyagents` on **67 popular open-source repos** (300+ stars, actively maintained, 418 agent files, ~851k tokens of agent instructions).
+
+<p align="center"><img src="docs/findings.svg" alt="Of 67 repos: 63% have an oversized agent file, 27% have stale paths, 28% are clean" width="768"></p>
 
 - **27% (18 repos) send their agent to files that no longer exist**: 97 stale paths in total.
-- **63% (42 repos) have at least one oversized file.** 49 always-loaded files are over 2,000 tokens; the largest is 15,125 tokens, read at the start of every session. The median is 903.
-- Even well-run repos aren't exempt: Anthropic's own `claude-api` skill is 26,280 tokens.
+- **63% (42 repos) have at least one oversized file.** Even Anthropic's own `claude-api` skill is 26,280 tokens.
+
+### Bloat costs you on every session
+
+Always-loaded files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`) are read before the agent does any work. A quarter of them are over budget; the largest is 15,125 tokens. The median is 929.
+
+<p align="center"><img src="docs/token-sizes.svg" alt="Histogram of 188 always-loaded files: 139 under 2,000 tokens, 49 over" width="768"></p>
 
 ### Before and after
 
-Real fixes found by `tidyagents` in public repos:
+Real fixes found by `tidyagents` in public repos and sent upstream:
+
+<p align="center"><img src="docs/before-after.svg" alt="Scores before and after: mongoose-unique-validator 50 to 100, swarm-tools 60 to 80, vuepress-theme-plume 86 to 96" width="768"></p>
 
 | Repo | File | What was stale | Score | Fix |
 |---|---|---|---|---|
@@ -62,6 +79,30 @@ Score: 57/100  ·  2 fixable, run tidyagents fix
 - **Safe to run.** `fix` shows a diff and asks before it writes, and never deletes a line it isn't sure about.
 - **Fits in CI.** `--min-score` fails the build when agent files rot.
 
+## For teams and companies
+
+Every engineer's agent reads the same instruction files at the start of every session. When those files rot, the cost multiplies across the team: wrong paths send agents on wasted searches, and bloat is paid for on every run. For example, a 4,000-token `CLAUDE.md` read by 50 engineers in 10 sessions a day is 2 million input tokens a day before any work starts.
+
+- **Safe to adopt.** Apache 2.0, with an explicit patent grant. Free for commercial use, with no copyleft.
+- **Nothing to audit but ~470 lines.** No dependencies means no supply-chain risk and nothing for security review to chase.
+- **Your instructions never leave the machine.** No network calls, no telemetry, no model calls. It reads files and runs `git check-ignore`, nothing else.
+- **Deterministic.** The same files always get the same score, so it is a stable CI gate.
+- **Monorepo aware.** Scripts are checked against every `package.json` in the repo.
+- **Works across agents.** One check for Claude Code, Codex, Gemini CLI, Cursor and GitHub Copilot files.
+- **Reports in JSON.** Feed `--json` into a dashboard to track agent-file health across every repo in your org.
+
+### Roll it out
+
+1. Run `npx github:vishwakulkarni/tidyagents` in your largest repo and fix what it finds.
+2. Add the [CI check](#use-in-ci) with `--min-score 80` so new rot fails the pull request.
+3. Track it across repos with `--json`:
+
+```bash
+for repo in */; do
+  (cd "$repo" && npx -y github:vishwakulkarni/tidyagents --json | jq -c --arg r "$repo" '{repo: $r, score}')
+done
+```
+
 ## Commands
 
 The examples below use `tidyagents`; until it's on npm, run it as `npx github:vishwakulkarni/tidyagents`.
@@ -102,7 +143,18 @@ Content inside code fences is ignored, and table rows are ignored for duplicates
 ## Use in CI
 
 ```yaml
-- run: npx github:vishwakulkarni/tidyagents --min-score 80
+# .github/workflows/agent-files.yml
+name: agent files
+on: [pull_request]
+jobs:
+  tidyagents:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npx -y github:vishwakulkarni/tidyagents --min-score 80
 ```
 
 ## Badge
@@ -115,4 +167,4 @@ Prints markdown like `![tidyagents](https://img.shields.io/badge/tidyagents-92%2
 
 ## License
 
-MIT
+[Apache License 2.0](LICENSE). Copyright 2026 Vishwanath Kulkarni.

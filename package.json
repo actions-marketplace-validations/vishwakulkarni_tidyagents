@@ -8,6 +8,7 @@
   },
   "files": [
     "bin",
+    "NOTICE",
     "src"
   ],
   "scripts": {
@@ -25,5 +26,5 @@
     "lint",
     "cli"
   ],
-  "license": "MIT"
+  "license": "Apache-2.0"
 }

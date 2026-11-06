@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 316" width="768" height="316" role="img" aria-label="tidyagents score before and after the fix in three public repos">
+<title>tidyagents score before and after the fix in three public repos</title>
+<style>
+  svg { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .t1 { fill: #0b0b0b; font-size: 17px; font-weight: 600; }
+  .t2 { fill: #52514e; font-size: 13px; }
+  .lab { fill: #0b0b0b; font-size: 13px; }
+  .val { fill: #0b0b0b; font-size: 13px; font-weight: 600; }
+  .ax { fill: #52514e; font-size: 12px; }
+  .grid { stroke: #e1e0d9; stroke-width: 1; }
+  .base { stroke: #898781; stroke-width: 1; }
+  .ok { fill: #2a78d6; } .bad { fill: #eb6834; } .neutral { fill: #898781; }
+  .okS { stroke: #2a78d6; } .badS { stroke: #eb6834; } .ring { stroke: #fcfcfb; }
+  .link { stroke: #898781; stroke-width: 2; }
+  .bg { fill: #fcfcfb; stroke: #e1e0d9; }
+  @media (prefers-color-scheme: dark) {
+    .t1, .lab, .val { fill: #f0efec; } .t2, .ax { fill: #c3c2b7; }
+    .bg { fill: #1a1a19; stroke: #2c2c2a; } .grid { stroke: #2c2c2a; } .ok { fill: #3987e5; } .bad { fill: #d95926; }
+    .okS { stroke: #3987e5; } .badS { stroke: #d95926; } .ring { stroke: #1a1a19; }
+  }
+</style>
+<rect class="bg" width="768" height="316" rx="12"/>
+<g transform="translate(24,20)">
+<text class="t1" x="0" y="22">tidyagents score before and after the fix</text>
+<text class="t2" x="0" y="44">Stale paths found in real repos, fixed and sent upstream as pull requests.</text>
+<circle class="neutral" cx="250" cy="66" r="6"/><text class="ax" x="262" y="70">before</text>
+<circle class="ok" cx="330" cy="66" r="6"/><text class="ax" x="342" y="70">after</text>
+<line class="grid" x1="250" x2="250" y1="86" y2="226"/><text class="ax" x="250" y="244" text-anchor="middle">0</text>
+<line class="grid" x1="460" x2="460" y1="86" y2="226"/><text class="ax" x="460" y="244" text-anchor="middle">50</text>
+<line class="grid" x1="670" x2="670" y1="86" y2="226"/><text class="ax" x="670" y="244" text-anchor="middle">100</text>
+<text class="lab" x="0" y="104">mongoose-unique-validator</text><text class="ax" x="0" y="120">CLAUDE.md</text><line class="link" x1="460" x2="670" y1="106" y2="106"/><circle class="neutral ring" cx="460" cy="106" r="7" stroke-width="2"/><circle class="ok ring" cx="670" cy="106" r="7" stroke-width="2"/><text class="ax" x="448" y="110" text-anchor="end">50</text><text class="val" x="682" y="110">100</text>
+<text class="lab" x="0" y="152">joelhooks/swarm-tools</text><text class="ax" x="0" y="168">AGENTS.md</text><line class="link" x1="502" x2="586" y1="154" y2="154"/><circle class="neutral ring" cx="502" cy="154" r="7" stroke-width="2"/><circle class="ok ring" cx="586" cy="154" r="7" stroke-width="2"/><text class="ax" x="490" y="158" text-anchor="end">60</text><text class="val" x="598" y="158">80</text>
+<text class="lab" x="0" y="200">vuepress-theme-plume</text><text class="ax" x="0" y="216">AGENTS.md</text><line class="link" x1="611.2" x2="653.2" y1="202" y2="202"/><circle class="neutral ring" cx="611.2" cy="202" r="7" stroke-width="2"/><circle class="ok ring" cx="653.2" cy="202" r="7" stroke-width="2"/><text class="ax" x="599.2" y="206" text-anchor="end">86</text><text class="val" x="665.2" y="206">96</text>
+<text class="ax" x="460" y="268" text-anchor="middle">score out of 100</text>
+</g>
+</svg>

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 370" width="768" height="370" role="img" aria-label="49 of 188 always-loaded agent files are over the 2,000-token budget">
+<title>49 of 188 always-loaded agent files are over the 2,000-token budget</title>
+<style>
+  svg { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .t1 { fill: #0b0b0b; font-size: 17px; font-weight: 600; }
+  .t2 { fill: #52514e; font-size: 13px; }
+  .lab { fill: #0b0b0b; font-size: 13px; }
+  .val { fill: #0b0b0b; font-size: 13px; font-weight: 600; }
+  .ax { fill: #52514e; font-size: 12px; }
+  .grid { stroke: #e1e0d9; stroke-width: 1; }
+  .base { stroke: #898781; stroke-width: 1; }
+  .ok { fill: #2a78d6; } .bad { fill: #eb6834; } .neutral { fill: #898781; }
+  .okS { stroke: #2a78d6; } .badS { stroke: #eb6834; } .ring { stroke: #fcfcfb; }
+  .link { stroke: #898781; stroke-width: 2; }
+  .bg { fill: #fcfcfb; stroke: #e1e0d9; }
+  @media (prefers-color-scheme: dark) {
+    .t1, .lab, .val { fill: #f0efec; } .t2, .ax { fill: #c3c2b7; }
+    .bg { fill: #1a1a19; stroke: #2c2c2a; } .grid { stroke: #2c2c2a; } .ok { fill: #3987e5; } .bad { fill: #d95926; }
+    .okS { stroke: #3987e5; } .badS { stroke: #d95926; } .ring { stroke: #1a1a19; }
+  }
+</style>
+<rect class="bg" width="768" height="370" rx="12"/>
+<g transform="translate(24,20)">
+<text class="t1" x="0" y="22">49 of 188 always-loaded agent files are over budget</text>
+<text class="t2" x="0" y="44">Token size of every AGENTS.md, CLAUDE.md, GEMINI.md and .cursorrules in 67 popular repos.</text>
+<text class="t2" x="0" y="62">Each one is read at the start of every agent session.</text>
+<line class="grid" x1="56" x2="696" y1="217.33333333333334" y2="217.33333333333334"/><text class="ax" x="48" y="221.33333333333334" text-anchor="end">20</text>
+<line class="grid" x1="56" x2="696" y1="154.66666666666669" y2="154.66666666666669"/><text class="ax" x="48" y="158.66666666666669" text-anchor="end">40</text>
+<line class="grid" x1="56" x2="696" y1="92" y2="92"/><text class="ax" x="48" y="96" text-anchor="end">60</text>
+<path class="ok" d="M77.33333333333334,280V133.6q0,-4 4,-4h56q4,0 4,4V280Z"/><text class="val" x="109.33333333333334" y="122.6" text-anchor="middle">48</text><text class="ax" x="109.33333333333334" y="298" text-anchor="middle">&lt; 500</text>
+<path class="ok" d="M184.00000000000003,280V127.33333333333331q0,-4 4,-4h56q4,0 4,4V280Z"/><text class="val" x="216.00000000000003" y="116.33333333333331" text-anchor="middle">50</text><text class="ax" x="216.00000000000003" y="298" text-anchor="middle">500–1k</text>
+<path class="ok" d="M290.6666666666667,280V155.53333333333333q0,-4 4,-4h56q4,0 4,4V280Z"/><text class="val" x="322.6666666666667" y="144.53333333333333" text-anchor="middle">41</text><text class="ax" x="322.6666666666667" y="298" text-anchor="middle">1k–2k</text>
+<path class="bad" d="M397.3333333333333,280V186.86666666666667q0,-4 4,-4h56q4,0 4,4V280Z"/><text class="val" x="429.3333333333333" y="175.86666666666667" text-anchor="middle">31</text><text class="ax" x="429.3333333333333" y="298" text-anchor="middle">2k–4k</text>
+<path class="bad" d="M504,280V233.86666666666667q0,-4 4,-4h56q4,0 4,4V280Z"/><text class="val" x="536" y="222.86666666666667" text-anchor="middle">16</text><text class="ax" x="536" y="298" text-anchor="middle">4k–8k</text>
+<path class="bad" d="M610.6666666666667,280V277.73333333333335q0,-4 4,-4h56q4,0 4,4V280Z"/><text class="val" x="642.6666666666667" y="266.73333333333335" text-anchor="middle">2</text><text class="ax" x="642.6666666666667" y="298" text-anchor="middle">8k+</text>
+<line class="base" x1="56" x2="696" y1="280" y2="280"/>
+<line class="badS" x1="376" x2="376" y1="80" y2="280" stroke-width="2" stroke-dasharray="4 4"/><text class="lab" x="384" y="90">over the 2,000-token budget →</text><text class="ax" x="376" y="320" text-anchor="middle">tokens per file (files on the y-axis)</text>
+</g>
+</svg>

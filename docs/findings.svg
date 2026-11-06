@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 262" width="768" height="262" role="img" aria-label="What tidyagents finds in 67 popular repos">
+<title>What tidyagents finds in 67 popular repos</title>
+<style>
+  svg { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .t1 { fill: #0b0b0b; font-size: 17px; font-weight: 600; }
+  .t2 { fill: #52514e; font-size: 13px; }
+  .lab { fill: #0b0b0b; font-size: 13px; }
+  .val { fill: #0b0b0b; font-size: 13px; font-weight: 600; }
+  .ax { fill: #52514e; font-size: 12px; }
+  .grid { stroke: #e1e0d9; stroke-width: 1; }
+  .base { stroke: #898781; stroke-width: 1; }
+  .ok { fill: #2a78d6; } .bad { fill: #eb6834; } .neutral { fill: #898781; }
+  .okS { stroke: #2a78d6; } .badS { stroke: #eb6834; } .ring { stroke: #fcfcfb; }
+  .link { stroke: #898781; stroke-width: 2; }
+  .bg { fill: #fcfcfb; stroke: #e1e0d9; }
+  @media (prefers-color-scheme: dark) {
+    .t1, .lab, .val { fill: #f0efec; } .t2, .ax { fill: #c3c2b7; }
+    .bg { fill: #1a1a19; stroke: #2c2c2a; } .grid { stroke: #2c2c2a; } .ok { fill: #3987e5; } .bad { fill: #d95926; }
+    .okS { stroke: #3987e5; } .badS { stroke: #d95926; } .ring { stroke: #1a1a19; }
+  }
+</style>
+<rect class="bg" width="768" height="262" rx="12"/>
+<g transform="translate(24,20)">
+<text class="t1" x="0" y="22">What tidyagents finds in 67 popular repos</text>
+<text class="t2" x="0" y="44">Repos with 300+ stars and an AGENTS.md, CLAUDE.md, GEMINI.md, SKILL.md or .cursorrules.</text>
+<text class="lab" x="0" y="85">Oversized agent file</text><text class="ax" x="0" y="101">over 2,000 tokens, or 5,000 for a skill</text><path class="bad" d="M300,76h215.40298507462688q4,0 4,4v14q0,4 -4,4h-215.40298507462688Z"/><text class="val" x="527.4029850746269" y="92">63%  <tspan class="ax">(42)</tspan></text>
+<text class="lab" x="0" y="131">Stale paths</text><text class="ax" x="0" y="147">agent is sent to files that no longer exist</text><path class="bad" d="M300,122h90.02985074626865q4,0 4,4v14q0,4 -4,4h-90.02985074626865Z"/><text class="val" x="402.02985074626866" y="138">27%  <tspan class="ax">(18)</tspan></text>
+<text class="lab" x="0" y="177">Clean</text><text class="ax" x="0" y="193">score 100</text><path class="ok" d="M300,168h95.25373134328358q4,0 4,4v14q0,4 -4,4h-95.25373134328358Z"/><text class="val" x="407.25373134328356" y="184">28%  <tspan class="ax">(19)</tspan></text>
+<line class="base" x1="300" x2="300" y1="70" y2="196"/>
+</g>
+</svg>
