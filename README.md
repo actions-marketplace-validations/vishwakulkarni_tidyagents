@@ -8,6 +8,8 @@ Lint, score and tidy your AI agent instruction files: `AGENTS.md`, `CLAUDE.md`, 
 
 Agent files grow quietly. Code moves, files get renamed, and the instructions your agent reads every session keep pointing at things that no longer exist. `tidyagents` finds the rot and cleans up what's safe to clean.
 
+<p align="center"><img src="docs/demo.gif" alt="tidyagents scores a CLAUDE.md at 71, then fix removes a dead script, a blank line and a duplicate to reach 86" width="768"></p>
+
 ```bash
 npx github:vishwakulkarni/tidyagents
 ```
@@ -94,7 +96,7 @@ Every engineer's agent reads the same instruction files at the start of every se
 ### Roll it out
 
 1. Run `npx github:vishwakulkarni/tidyagents` in your largest repo and fix what it finds.
-2. Add the [CI check](#use-in-ci) with `--min-score 80` so new rot fails the pull request.
+2. Add the [GitHub Action](#use-in-ci) with `min-score: 80` so new rot fails the pull request.
 3. Track it across repos with `--json`:
 
 ```bash
@@ -142,6 +144,8 @@ Content inside code fences is ignored, and table rows are ignored for duplicates
 
 ## Use in CI
 
+With the GitHub Action:
+
 ```yaml
 # .github/workflows/agent-files.yml
 name: agent files
@@ -151,11 +155,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: vishwakulkarni/tidyagents@v1
         with:
-          node-version: 20
-      - run: npx -y github:vishwakulkarni/tidyagents --min-score 80
+          min-score: 80              # default 80
+          # working-directory: .     # folder to check
 ```
+
+The action runs on the runner's own Node with no install step. On any other CI, run `npx -y github:vishwakulkarni/tidyagents --min-score 80`.
 
 ## Badge
 

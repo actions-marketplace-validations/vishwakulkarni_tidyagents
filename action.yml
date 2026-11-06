@@ -1,0 +1,24 @@
+name: tidyagents
+description: Lint and score AI agent instruction files (AGENTS.md, CLAUDE.md, .cursorrules and more). Fails when they rot.
+author: Vishwanath Kulkarni
+branding:
+  icon: check-square
+  color: green
+
+inputs:
+  min-score:
+    description: Fail the step if the score is below this (0-100).
+    default: '80'
+  working-directory:
+    description: Folder to check.
+    default: '.'
+
+runs:
+  using: composite
+  steps:
+    # Zero dependencies: runs the checked-out action with the runner's own Node.
+    - shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        MIN_SCORE: ${{ inputs.min-score }}
+      run: node "$GITHUB_ACTION_PATH/bin/tidyagents.js" --min-score "$MIN_SCORE"
