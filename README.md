@@ -16,11 +16,11 @@ We ran `tidyagents` on **67 popular open-source repos** (300+ stars, actively ma
 
 Real fixes found by `tidyagents` in public repos:
 
-| Repo | File | What was stale | Score |
-|---|---|---|---|
-| mongoose-unique-validator (543★) | `CLAUDE.md` | Whole test layout: tests moved from `.js` files to `.ts` and new folders | **50 → 100** |
-| joelhooks/swarm-tools (749★) | `AGENTS.md` | Skills folder renamed `.opencode/skills/` → `.opencode/skill/` | **60 → 80** |
-| vuepress-theme-plume (497★) | `AGENTS.md` | `ConfigLoader.ts` moved into `features/` | **86 → 96** |
+| Repo | File | What was stale | Score | Fix |
+|---|---|---|---|---|
+| mongoose-unique-validator (543★) | `CLAUDE.md` | Whole test layout: tests moved from `.js` files to `.ts` and new folders | **50 → 100** | [PR #169](https://github.com/mongoose-unique-validator/mongoose-unique-validator/pull/169) |
+| joelhooks/swarm-tools (749★) | `AGENTS.md` | Skills folder renamed `.opencode/skills/` → `.opencode/skill/` | **60 → 80** | [PR #212](https://github.com/joelhooks/swarm-tools/pull/212) |
+| vuepress-theme-plume (497★) | `AGENTS.md` | `ConfigLoader.ts` moved into `features/` | **86 → 96** | [PR #1080](https://github.com/pengzhanbo/vuepress-theme-plume/pull/1080) |
 
 ### Big-name repos
 
