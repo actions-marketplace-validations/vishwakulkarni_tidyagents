@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo/logo.svg" alt="tidyagents logo: a robot sweeping with a broom" width="420"></p>
+
 # tidyagents
 
 [![npm](https://img.shields.io/npm/v/tidyagents)](https://www.npmjs.com/package/tidyagents)
