@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -22,6 +22,7 @@ function lint(text, root = tempRepo({}), scripts = null) {
 }
 
 const rules = (result) => result.issues.map((i) => i.rule);
+const SKILL_FM = '---\nname: x\ndescription: Does x. Use when the user asks for x.\n---\n';
 
 test('a clean file scores 100', () => {
   const result = lint('# AGENTS.md\n\n- Run the tests before finishing.\n');
@@ -59,12 +60,12 @@ test('skips gitignored paths, files to create, examples and elided paths', () =>
 });
 
 test('skips path checks in SKILL.md, which describes other projects', () => {
-  const root = tempRepo({ 'src/app.js': '', 'skills/x/SKILL.md': '- Read `src/missing.js`\n' });
+  const root = tempRepo({ 'src/app.js': '', 'skills/x/SKILL.md': `${SKILL_FM}- Read \`src/missing.js\`\n` });
   assert.deepEqual(lintFile(join(root, 'skills/x/SKILL.md'), root).issues, []);
 });
 
 test('SKILL.md files get a bigger size budget', () => {
-  const root = tempRepo({ 'skills/x/SKILL.md': `${'Some unique sentence number '.repeat(400)}\n` });
+  const root = tempRepo({ 'skills/x/SKILL.md': `${SKILL_FM}${'Some unique sentence number '.repeat(400)}\n` });
   assert.deepEqual(lintFile(join(root, 'skills/x/SKILL.md'), root).issues, []);
 });
 
@@ -176,6 +177,139 @@ test('finds agent files and skips node_modules and hidden folders', () => {
   });
   const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
   assert.deepEqual(found, ['.claude/skills/x/SKILL.md', '.github/copilot-instructions.md', 'AGENTS.md', 'packages/api/CLAUDE.md']);
+});
+
+test('finds rule folders, local and override files', () => {
+  const root = tempRepo({
+    'CLAUDE.local.md': '',
+    'AGENTS.override.md': '',
+    '.windsurfrules': '',
+    '.claude/rules/testing.md': '',
+    '.claude/rules/api/style.md': '',
+    '.cursor/rules/react.mdc': '',
+    '.cursor/rules/notes.txt': '',
+    '.github/instructions/ts.instructions.md': '',
+    '.github/instructions/README.md': '',
+    '.clinerules/style.md': '',
+    '.clinerules/workflows/release.md': '',
+  });
+  const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
+  assert.deepEqual(found, [
+    '.claude/rules/api/style.md', '.claude/rules/testing.md', '.clinerules/style.md', '.cursor/rules/react.mdc',
+    '.github/instructions/ts.instructions.md', '.windsurfrules', 'AGENTS.override.md', 'CLAUDE.local.md',
+  ]);
+});
+
+test('flags broken markdown links, relative to the file', () => {
+  const root = tempRepo({ 'docs/guide.md': '', 'pkg/README.md': '', 'pkg/AGENTS.md': '' });
+  const text = [
+    '- See [guide](../docs/guide.md#setup) and [readme](README.md)',
+    '- Old: [api](../docs/api.md) and [notes](NOTES.md)',
+    '- Web: [site](https://x.dev), [top](#top), [mail](mailto:a@b.c), [tpl](<path>), [ex](path/to/file.md), [x](URL)',
+    '- Built: [models](gen.md)',
+  ].join('\n');
+  writeFileSync(join(root, 'pkg/gen.md.j2'), '');
+  const result = lintText(`${text}\n`, { fileDir: join(root, 'pkg'), root, scripts: null });
+  assert.deepEqual(result.issues.map((i) => [i.rule, i.line]), [['missing-path', 2], ['missing-path', 2]]);
+  assert.match(result.issues[0].message, /links to `\.\.\/docs\/api\.md`/);
+});
+
+test('checks links in SKILL.md against the skill folder', () => {
+  const root = tempRepo({
+    'skills/x/references/a.md': '',
+    'skills/x/SKILL.md': `${SKILL_FM}- See [a](references/a.md) and [b](references/b.md)\n`,
+  });
+  assert.deepEqual(rules(lintFile(join(root, 'skills/x/SKILL.md'), root)), ['missing-path']);
+});
+
+test('flags broken @imports but not mentions, scopes or code spans', () => {
+  const root = tempRepo({ 'docs/a.md': '', 'Design Docs/b.md': '', 'package.json': '{}' });
+  const text = [
+    '- Read @docs/a.md, @package.json and @Design\\ Docs/b.md',
+    '- Gone: @docs/old.md and @NOTES.md',
+    '- Ask @alice, install @types/node, email me@x.com, keep `@docs/literal.md`, home @~/.claude/x.md',
+  ].join('\n');
+  const result = lint(`${text}\n`, root);
+  assert.deepEqual(result.issues.map((i) => [i.rule, i.line]), [['missing-import', 2], ['missing-import', 2]]);
+  assert.match(result.issues[0].message, /@docs\/old\.md/);
+});
+
+test('counts @imported files toward size, once each and through nested imports', () => {
+  const big = `${'Some unique sentence number '.repeat(200)}\n`;
+  const root = tempRepo({
+    'CLAUDE.md': '@AGENTS.md\n@docs/a.md\n',
+    'AGENTS.md': 'Rules here, see @docs/a.md\n',
+    'docs/a.md': `${big}@docs/b.md\n`.replace('@docs/b.md', '@b.md'),
+    'docs/b.md': big,
+  });
+  const result = lintFile(join(root, 'CLAUDE.md'), root);
+  assert.deepEqual(rules(result), ['size']);
+  assert.match(result.issues[0].message, /of them from @imports/);
+});
+
+test('validates SKILL.md frontmatter', () => {
+  const skill = (fm) => {
+    const root = tempRepo({ 'skills/x/SKILL.md': `${fm}Body text.\n` });
+    return lintFile(join(root, 'skills/x/SKILL.md'), root).issues.map((i) => [i.severity, i.message]);
+  };
+  assert.deepEqual(skill(SKILL_FM), []);
+  assert.match(skill('Body only\n')[0][1], /no `description`/);
+  assert.match(skill('---\nname: x\n')[0][1], /never closed/);
+  assert.deepEqual(skill('---\nname: Review-Code\ndescription: Reviews code.\n---\n')[0][0], 'warn');
+  assert.deepEqual(skill('---\nname: <x>\ndescription: Reviews code.\n---\n')[0][0], 'error');
+  assert.match(skill(`---\nname: x\ndescription: >\n  ${'word '.repeat(220)}\n---\n`)[0][1], /spec allows 1,024/);
+  assert.match(skill(`---\nname: x\ndescription: ${'a'.repeat(1000)}\nwhen_to_use: ${'b'.repeat(600)}\n---\n`)[0][1], /cuts it at 1,536/);
+});
+
+test('skips frontmatter in line rules', () => {
+  const text = '---\ndescription: follow best practices\nglobs: src/gone/*.ts\n---\n- Body rule that is specific enough\n';
+  assert.deepEqual(rules(lint(text, tempRepo({ 'src/a.js': '' }))), []);
+});
+
+test('honors tidyagents-disable comments', () => {
+  const text = [
+    '<!-- tidyagents-disable-next-line vague -->',
+    '- Follow best practices.',
+    '<!-- tidyagents-disable-next-line duplicate -->',
+    '- Write clean code',
+    '- Write clean code',
+  ].join('\n');
+  const result = lint(`${text}\n`);
+  assert.deepEqual(result.issues.map((i) => [i.rule, i.line]), [['vague', 4], ['vague', 5], ['duplicate', 5]]);
+  assert.deepEqual(rules(lint(`<!-- tidyagents-disable-file vague, duplicate -->\n${text}\n`)), []);
+  assert.deepEqual(rules(lint(`<!-- tidyagents-disable-file -->\n${text}\n`)), []);
+});
+
+test('warns when CLAUDE.md shadows an AGENTS.md it never mentions', () => {
+  const shadowed = tempRepo({ 'AGENTS.md': '- A rule here\n', 'CLAUDE.md': '- Another rule\n' });
+  assert.deepEqual(rules(lintFile(join(shadowed, 'AGENTS.md'), shadowed)), ['shadowed']);
+  const imported = tempRepo({ 'AGENTS.md': '- A rule here\n', '.claude/CLAUDE.md': '@../AGENTS.md\n' });
+  assert.deepEqual(rules(lintFile(join(imported, 'AGENTS.md'), imported)), []);
+  const linked = tempRepo({ 'AGENTS.md': '- A rule here\n' });
+  symlinkSync('AGENTS.md', join(linked, 'CLAUDE.md'));
+  assert.deepEqual(rules(lintFile(join(linked, 'AGENTS.md'), linked)), []);
+  assert.deepEqual(findAgentFiles(linked).map((p) => p.slice(linked.length + 1)), ['AGENTS.md'], 'symlink checked once');
+  const copied = tempRepo({ 'AGENTS.md': '- A rule here\n', 'CLAUDE.md': '- A rule here\n' });
+  assert.deepEqual(rules(lintFile(join(copied, 'AGENTS.md'), copied)), []);
+});
+
+test('scoped rule files get the on-demand size budget', () => {
+  const body = `${'Some unique sentence number '.repeat(400)}\n`;
+  const size = (path, fm) => {
+    const root = tempRepo({ [path]: `${fm}${body}` });
+    return rules(lintFile(join(root, path), root));
+  };
+  assert.deepEqual(size('.github/instructions/ts.instructions.md', '---\napplyTo: "**/*.ts"\n---\n'), []);
+  assert.deepEqual(size('.github/instructions/all.instructions.md', '---\napplyTo: "**"\n---\n'), ['size']);
+  assert.deepEqual(size('.claude/rules/api.md', '---\npaths:\n  - src/api/**\n---\n'), []);
+  assert.deepEqual(size('.claude/rules/all.md', ''), ['size']);
+  assert.deepEqual(size('.cursor/rules/a.mdc', '---\nalwaysApply: true\n---\n'), ['size']);
+  assert.deepEqual(size('.cursor/rules/b.mdc', '---\ndescription: React\nalwaysApply: false\n---\n'), []);
+});
+
+test('does not count imported agent files twice', () => {
+  const root = tempRepo({ 'CLAUDE.md': '@AGENTS.md\n', 'AGENTS.md': `${'Some unique sentence number '.repeat(400)}\n` });
+  assert.deepEqual(rules(lintFile(join(root, 'CLAUDE.md'), root)), []);
 });
 
 test('badge color follows score', () => {

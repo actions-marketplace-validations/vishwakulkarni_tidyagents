@@ -7,7 +7,7 @@
 ![Dependencies: 0](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![Node >=18.3](https://img.shields.io/badge/node-%3E%3D18.3-blue)
 
-Lint, score and tidy your AI agent instruction files: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `SKILL.md`, `.cursorrules` and `.github/copilot-instructions.md`.
+Lint, score and tidy your AI agent instruction files: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `SKILL.md`, `.cursorrules`, `.github/copilot-instructions.md`, and the rule folders of Claude Code, Cursor, Copilot, Cline and Windsurf.
 
 Agent files grow quietly. Code moves, files get renamed, and the instructions your agent reads every session keep pointing at things that no longer exist. `tidyagents` finds the rot and cleans up what's safe to clean.
 
@@ -89,7 +89,7 @@ Score: 57/100  ·  2 fixable, run tidyagents fix
 Every engineer's agent reads the same instruction files at the start of every session. When those files rot, the cost multiplies across the team: wrong paths send agents on wasted searches, and bloat is paid for on every run. For example, a 4,000-token `CLAUDE.md` read by 50 engineers in 10 sessions a day is 2 million input tokens a day before any work starts.
 
 - **Safe to adopt.** Apache 2.0, with an explicit patent grant. Free for commercial use, with no copyleft.
-- **Nothing to audit but ~470 lines.** No dependencies means no supply-chain risk and nothing for security review to chase.
+- **Nothing to audit but ~730 lines.** No dependencies means no supply-chain risk and nothing for security review to chase.
 - **Your instructions never leave the machine.** No network calls, no telemetry, no model calls. It reads files and runs `git check-ignore`, nothing else.
 - **Deterministic.** The same files always get the same score, so it is a stable CI gate.
 - **Monorepo aware.** Scripts are checked against every `package.json` in the repo.
@@ -117,7 +117,11 @@ tidyagents badge        # print a README badge for your score
 tidyagents init         # create a starter AGENTS.md
 ```
 
-You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules` and hidden folders other than `.claude`).
+You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules` and hidden folders other than `.claude`) for:
+
+- `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `CLAUDE.local.md`, `GEMINI.md` and `SKILL.md` in any folder
+- `.cursorrules`, `.windsurfrules`, `.clinerules` and `.github/copilot-instructions.md` at the root
+- Rule folders at the root: `.claude/rules/**/*.md`, `.cursor/rules/**/*.mdc`, `.github/instructions/**/*.instructions.md`, `.clinerules/*.md` and `.windsurf/rules/*.md`
 
 | Option | |
 |---|---|
@@ -131,14 +135,27 @@ You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it 
 | Rule | Severity | Auto-fix |
 |---|---|---|
 | `missing-path`: a backticked path like `src/old.js` whose top folder exists but the file is gone. Gitignored paths, lines about creating files or giving examples, and `SKILL.md` files are skipped | error | no, it may be a file the agent should create |
+| `missing-path` (links): a relative markdown link like `[guide](docs/guide.md)` to a file that is gone. Checked in `SKILL.md` too, against the skill's own folder | error | no |
+| `missing-import`: a Claude Code `@path/to/file.md` import that points nowhere, so nothing is loaded. Mentions like `@alice`, package scopes and `@~/` home paths are skipped | error | no |
 | `missing-script`: `npm run x` / `pnpm run x` where no `package.json` in the repo defines `x` | error | removes the bullet if nothing else in it works |
 | `contradiction`: "always X" and "never X" in the same file | error | no, you pick |
 | `duplicate`: the same top-level bullet twice in one section, ignoring case and punctuation | warn | removes the repeat |
 | `vague`: short rules like "write clean code" an agent can't act on | warn | no |
-| `size`: over 2,000 tokens (warn) or 4,000 (error); `SKILL.md` files load only when used, so 5,000 / 10,000 | warn/error | no |
+| `size`: over 2,000 tokens (warn) or 4,000 (error), counting files pulled in with `@imports`. `SKILL.md` files and scoped rules (`paths`, `globs`, `applyTo`) load only when used, so 5,000 / 10,000 | warn/error | no |
+| `skill-frontmatter`: a `SKILL.md` with no `description`, unclosed frontmatter, a `name` outside the [Agent Skills spec](https://agentskills.io/specification) (lowercase, digits, hyphens, ≤64), or a description longer than the spec's 1,024 or Claude Code's 1,536-character listing | warn/error | no |
+| `shadowed`: an `AGENTS.md` next to a `CLAUDE.md` that never mentions it. Claude Code then reads only `CLAUDE.md`, so add `@AGENTS.md` to it | warn | no |
 | `blank-lines`: runs of blank lines | info | collapses them |
 
-Content inside code fences is ignored, and table rows are ignored for duplicates and contradictions.
+Content inside code fences and YAML frontmatter is ignored, and table rows are ignored for duplicates and contradictions.
+
+**Turning a rule off:** put an HTML comment above the line, or anywhere in the file for the whole file. List rules to silence only those; with none, all are silenced. Claude Code strips these comments before loading the file, so they cost no tokens.
+
+```markdown
+<!-- tidyagents-disable-next-line missing-path -->
+- Write the report to `reports/summary.md`
+
+<!-- tidyagents-disable-file vague, size -->
+```
 
 **Scoring:** each file starts at 100 and loses 10 per error, 4 per warning and 1 per info. The repo score is the lowest file score.
 

@@ -25,7 +25,11 @@ Options
   -v, --version     Show version
 
 With no files given, it finds AGENTS.md, CLAUDE.md, GEMINI.md, SKILL.md,
-.cursorrules and .github/copilot-instructions.md in the current folder.`;
+.cursorrules, .github/copilot-instructions.md and the rule folders of
+Claude Code, Cursor, Copilot, Cline and Windsurf in the current folder.
+
+Silence a finding with <!-- tidyagents-disable-next-line rule --> above it,
+or <!-- tidyagents-disable-file rule --> anywhere in the file.`;
 
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
 const paint = (code) => (s) => (useColor ? `\x1b[${code}m${s}\x1b[0m` : s);
