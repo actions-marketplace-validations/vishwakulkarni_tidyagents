@@ -14,6 +14,8 @@ const RULE_DIRS = [
   ['.windsurf/rules', /\.md$/, false],
 ];
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'vendor', 'target']);
+// Hidden folders that hold agent files: Claude Code, and the shared `.agents/skills` of Codex and others.
+const AGENT_DIRS = new Set(['.claude', '.agents', '.codex', '.gemini']);
 
 const PENALTY = { error: 10, warn: 4, info: 1 };
 const TOKENS_WARN = 2000;
@@ -74,7 +76,7 @@ function findFiles(root, matches) {
   const walk = (dir) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.isDirectory()) {
-        const hidden = entry.name.startsWith('.') && entry.name !== '.claude';
+        const hidden = entry.name.startsWith('.') && !AGENT_DIRS.has(entry.name);
         if (!hidden && !SKIP_DIRS.has(entry.name)) walk(join(dir, entry.name));
       } else if (entry.isFile() && matches(entry.name)) {
         found.push(join(dir, entry.name));
@@ -122,7 +124,8 @@ function normalize(line) {
 // A reference has rotted when its top folder exists but the rest is gone. Bare
 // names, package names, URLs and example paths have no existing top folder, so
 // they return null (not checkable) instead of a false alarm.
-function pathExists(span, bases) {
+function pathExists(span, fileDir, root) {
+  const bases = [fileDir, root];
   const path = span.replace(/^\.\//, '').replace(/\/$/, '');
   if (!/^[\w.\-/]+$/.test(path) || !path.includes('/') || UNCHECKABLE_PATH.test(path)) return null;
   const top = path.split('/')[0];
@@ -130,7 +133,20 @@ function pathExists(span, bases) {
   if (!anchored.length) return null;
   if (anchored.some((base) => existsSync(join(base, path)))) return true;
   // Build output, caches and local config are gitignored: absent from a fresh clone by design.
-  return anchored.some((base) => isGitIgnored(base, path)) ? null : false;
+  return anchored.some((base) => isGitIgnored(base, path) || inSubmodule(root, join(base, path))) ? null : false;
+}
+
+// Submodules are empty until `git submodule update`, as in most CI checkouts, so
+// paths inside them can't be checked. Their paths come from the root .gitmodules.
+const submodules = new Map();
+function inSubmodule(root, full) {
+  if (!submodules.has(root)) {
+    const file = join(root, '.gitmodules');
+    const text = isFile(file) ? readFileSync(file, 'utf8') : '';
+    submodules.set(root, [...text.matchAll(/^\s*path\s*=\s*(.+?)\s*$/gm)].map(([, p]) => resolve(root, p)));
+  }
+  const target = resolve(full);
+  return submodules.get(root).some((dir) => target === dir || target.startsWith(`${dir}/`) || target.startsWith(`${dir}\\`));
 }
 
 // The trailing-slash form matches folder patterns like `dist/` for folders that don't exist.
@@ -160,7 +176,7 @@ function localFileExists(target, fileDir, root) {
   let up = 0;
   while (parts[up] === '..') up++;
   if (!existsSync(resolve(fileDir, ...parts.slice(0, Math.min(up + 1, parts.length - 1))))) return null;
-  if (isGenerated(full)) return null;
+  if (isGenerated(full) || inSubmodule(root, full)) return null;
   return isGitIgnored(root, rel) ? null : false;
 }
 
@@ -297,7 +313,7 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false, skill
     // Skills describe whatever project they run in, so their paths aren't checked.
     const checkPaths = !skill && !NOT_A_REFERENCE.test(line);
     for (const [, span] of checkPaths ? line.matchAll(CODE_SPAN) : []) {
-      const exists = pathExists(span, [fileDir, root]);
+      const exists = pathExists(span, fileDir, root);
       if (exists) workingRefs++;
       // Never auto-removed: the line may describe a file the agent is meant to create.
       else if (exists === false) add('missing-path', 'error', i, `references \`${span}\`, which does not exist`);

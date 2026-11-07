@@ -117,7 +117,7 @@ tidyagents badge        # print a README badge for your score
 tidyagents init         # create a starter AGENTS.md
 ```
 
-You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules` and hidden folders other than `.claude`) for:
+You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules` and hidden folders other than `.claude`, `.agents`, `.codex` and `.gemini`) for:
 
 - `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `CLAUDE.local.md`, `GEMINI.md` and `SKILL.md` in any folder
 - `.cursorrules`, `.windsurfrules`, `.clinerules` and `.github/copilot-instructions.md` at the root
@@ -134,7 +134,7 @@ You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it 
 
 | Rule | Severity | Auto-fix |
 |---|---|---|
-| `missing-path`: a backticked path like `src/old.js` whose top folder exists but the file is gone. Gitignored paths, lines about creating files or giving examples, and `SKILL.md` files are skipped | error | no, it may be a file the agent should create |
+| `missing-path`: a backticked path like `src/old.js` whose top folder exists but the file is gone. Gitignored paths, paths inside git submodules, lines about creating files or giving examples, and `SKILL.md` files are skipped | error | no, it may be a file the agent should create |
 | `missing-path` (links): a relative markdown link like `[guide](docs/guide.md)` to a file that is gone. Checked in `SKILL.md` too, against the skill's own folder | error | no |
 | `missing-import`: a Claude Code `@path/to/file.md` import that points nowhere, so nothing is loaded. Mentions like `@alice`, package scopes and `@~/` home paths are skipped | error | no |
 | `missing-script`: `npm run x` / `pnpm run x` where no `package.json` in the repo defines `x` | error | removes the bullet if nothing else in it works |

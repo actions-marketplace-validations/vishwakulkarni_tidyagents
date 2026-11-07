@@ -59,6 +59,12 @@ test('skips gitignored paths, files to create, examples and elided paths', () =>
   assert.deepEqual(rules(lint(`${text}\n`, root)), []);
 });
 
+test('skips paths and links inside git submodules that are not checked out', () => {
+  const root = tempRepo({ '.gitmodules': '[submodule "schema"]\n\tpath = vendor/osv-schema\n', 'vendor/osv-schema/.keep': '', 'src/a.js': '' });
+  const text = '- Schema: `vendor/osv-schema/docs/schema.md`, [proto](vendor/osv-schema/x.proto)\n- Gone: `src/b.js`\n';
+  assert.deepEqual(lint(text, root).issues.map((i) => [i.rule, i.line]), [['missing-path', 2]]);
+});
+
 test('skips path checks in SKILL.md, which describes other projects', () => {
   const root = tempRepo({ 'src/app.js': '', 'skills/x/SKILL.md': `${SKILL_FM}- Read \`src/missing.js\`\n` });
   assert.deepEqual(lintFile(join(root, 'skills/x/SKILL.md'), root).issues, []);
@@ -174,9 +180,14 @@ test('finds agent files and skips node_modules and hidden folders', () => {
     '.github/copilot-instructions.md': '',
     'node_modules/pkg/AGENTS.md': '',
     '.cache/AGENTS.md': '',
+    '.agents/skills/y/SKILL.md': '',
+    '.codex/AGENTS.md': '',
   });
   const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
-  assert.deepEqual(found, ['.claude/skills/x/SKILL.md', '.github/copilot-instructions.md', 'AGENTS.md', 'packages/api/CLAUDE.md']);
+  assert.deepEqual(found, [
+    '.agents/skills/y/SKILL.md', '.claude/skills/x/SKILL.md', '.codex/AGENTS.md',
+    '.github/copilot-instructions.md', 'AGENTS.md', 'packages/api/CLAUDE.md',
+  ]);
 });
 
 test('finds rule folders, local and override files', () => {
