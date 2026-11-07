@@ -1,6 +1,6 @@
 {
   "name": "tidyagents",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lint, score and tidy AI agent instruction files: AGENTS.md, CLAUDE.md, .cursorrules and more.",
   "author": "Vishwanath Kulkarni",
   "license": "Apache-2.0",
