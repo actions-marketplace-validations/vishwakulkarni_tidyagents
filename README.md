@@ -121,6 +121,7 @@ You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it 
 |---|---|
 | `--min-score <n>` | Exit with code 1 if the score is below `n` |
 | `--json` | Print check results as JSON |
+| `--format github` | Also print GitHub Actions annotations, so issues show inline on the PR |
 | `-y, --yes` | Apply fixes without the prompt |
 
 ## What it checks
@@ -160,7 +161,7 @@ jobs:
           # working-directory: .     # folder to check
 ```
 
-The action runs on the runner's own Node with no install step. On any other CI, run `npx -y tidyagents --min-score 80`.
+The action runs on the runner's own Node with no install step, and issues show up as inline annotations on the PR's changed files. On any other CI, run `npx -y tidyagents --min-score 80`.
 
 ## Badge
 

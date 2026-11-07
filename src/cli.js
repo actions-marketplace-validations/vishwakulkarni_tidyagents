@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { createInterface } from 'node:readline/promises';
 import {
@@ -19,6 +19,7 @@ Usage
 Options
   --min-score <n>   Exit with code 1 if the score is below n (for CI)
   --json            Print check results as JSON
+  --format <name>   text (default), json, or github (inline PR annotations)
   -y, --yes         Apply fixes without asking
   -h, --help        Show this help
   -v, --version     Show version
@@ -54,9 +55,28 @@ function printResults(results) {
   }
 }
 
+// GitHub Actions workflow commands: each line becomes an inline annotation on the PR.
+// https://docs.github.com/actions/reference/workflow-commands-for-github-actions
+const ANNOTATION = { error: 'error', warn: 'warning', info: 'notice' };
+const escapeData = (s) => s.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+const escapeProperty = (s) => escapeData(s).replace(/:/g, '%3A').replace(/,/g, '%2C');
+
+function printAnnotations(results) {
+  // Annotation paths are relative to the repo root, which differs from cwd under working-directory.
+  const base = process.env.GITHUB_WORKSPACE || process.cwd();
+  for (const r of results) {
+    const file = escapeProperty(relative(base, resolve(r.path)).split('\\').join('/'));
+    for (const issue of r.issues) {
+      const line = issue.line ? `,line=${issue.line}` : '';
+      console.log(`::${ANNOTATION[issue.severity]} file=${file}${line},title=${escapeProperty(`tidyagents ${issue.rule}`)}::${escapeData(issue.message)}`);
+    }
+  }
+}
+
 function check(results, opts) {
   const score = overallScore(results);
-  if (opts.json) {
+  if (opts.format === 'github') printAnnotations(results);
+  if (opts.format === 'json') {
     const files = results.map(({ file, tokens, score, issues }) => ({
       file, tokens, score,
       issues: issues.map(({ remove, ...issue }) => ({ ...issue, fixable: Boolean(remove) })),
@@ -161,6 +181,7 @@ export async function main(argv) {
     options: {
       'min-score': { type: 'string' },
       json: { type: 'boolean' },
+      format: { type: 'string', default: 'text' },
       yes: { type: 'boolean', short: 'y' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
@@ -173,6 +194,9 @@ export async function main(argv) {
     return console.log(pkg.version), 0;
   }
 
+  if (opts.json) opts.format = 'json';
+  if (!['text', 'json', 'github'].includes(opts.format)) throw new UsageError('--format must be text, json or github');
+
   const command = COMMANDS.has(positionals[0]) ? positionals.shift() : 'check';
   const minScore = opts['min-score'] === undefined ? null : Number(opts['min-score']);
   if (minScore !== null && !(minScore >= 0 && minScore <= 100)) throw new UsageError('--min-score must be a number from 0 to 100');
@@ -181,7 +205,7 @@ export async function main(argv) {
   if (command === 'init') return init(root), 0;
 
   const results = lintTargets(positionals, root);
-  if (!results.length && !(command === 'check' && opts.json)) {
+  if (!results.length && !(command === 'check' && opts.format === 'json')) {
     console.log(`No agent instruction files found. Run ${bold('tidyagents init')} to create one.`);
     return command === 'badge' ? 1 : 0;
   }
@@ -191,7 +215,7 @@ export async function main(argv) {
 
   const score = check(results, opts);
   if (minScore !== null && score < minScore) {
-    if (!opts.json) console.error(red(`\nScore ${score} is below --min-score ${minScore}.`));
+    if (opts.format !== 'json') console.error(red(`\nScore ${score} is below --min-score ${minScore}.`));
     return 1;
   }
   return 0;

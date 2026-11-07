@@ -21,4 +21,4 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       env:
         MIN_SCORE: ${{ inputs.min-score }}
-      run: node "$GITHUB_ACTION_PATH/bin/tidyagents.js" --min-score "$MIN_SCORE"
+      run: node "$GITHUB_ACTION_PATH/bin/tidyagents.js" --min-score "$MIN_SCORE" --format github

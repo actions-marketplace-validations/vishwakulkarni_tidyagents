@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -191,6 +191,16 @@ test('cli: --min-score fails the build and --json reports issues', () => {
   const json = JSON.parse(cli(root, '--json').stdout);
   assert.equal(json.score, 90);
   assert.equal(json.files[0].issues[0].fixable, false);
+});
+
+test('cli: --format github prints workflow annotations relative to the workspace', () => {
+  const root = realpathSync(tempRepo({ 'pkg/CLAUDE.md': '- See `docs/gone.md`\n', 'pkg/docs/a.md': '' }));
+  const result = spawnSync('node', [BIN, '--format', 'github'], {
+    cwd: join(root, 'pkg'), encoding: 'utf8', env: { ...process.env, GITHUB_WORKSPACE: root },
+  });
+  assert.match(result.stdout, /^::error file=pkg\/CLAUDE\.md,line=1,title=tidyagents missing-path::references `docs\/gone\.md`/m);
+  assert.match(result.stdout, /Score: 90\/100/, 'keeps the readable report in the log');
+  assert.equal(cli(root, '--format', 'xml').status, 2);
 });
 
 test('cli: fix is a dry run without --yes, and writes with it', () => {
