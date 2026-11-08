@@ -109,12 +109,16 @@ export function findAgentFiles(root) {
     return readdirSync(base).filter((name) => pattern.test(name)).map((name) => join(base, name)).filter(isFile);
   });
   const named = findFiles(root, (name) => AGENT_FILE_NAMES.has(name));
-  // Symlinked files (CLAUDE.md -> AGENTS.md) and folders are checked once, under the first path.
-  const real = new Set();
-  return [...rootOnly, ...rules, ...named].sort().filter((path) => {
+  // Symlinked files (CLAUDE.md -> AGENTS.md) and folders are checked once, under the real path when
+  // it was found too, so relative links resolve from the folder the content actually lives in.
+  const realRoot = realpathSync(root);
+  const isReal = (path) => realpathSync(path) === join(realRoot, relative(root, path));
+  const byTarget = new Map();
+  for (const path of [...rootOnly, ...rules, ...named].sort()) {
     const target = realpathSync(path);
-    return !real.has(target) && real.add(target);
-  });
+    if (!byTarget.has(target) || (isReal(path) && !isReal(byTarget.get(target)))) byTarget.set(target, path);
+  }
+  return [...byTarget.values()].sort();
 }
 
 export function estimateTokens(text) {

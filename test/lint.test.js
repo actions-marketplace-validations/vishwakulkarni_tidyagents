@@ -336,6 +336,10 @@ test('warns when CLAUDE.md shadows an AGENTS.md it never mentions', () => {
   symlinkSync('AGENTS.md', join(linked, 'CLAUDE.md'));
   assert.deepEqual(rules(lintFile(join(linked, 'AGENTS.md'), linked)), []);
   assert.deepEqual(findAgentFiles(linked).map((p) => p.slice(linked.length + 1)), ['AGENTS.md'], 'symlink checked once');
+  const github = tempRepo({ 'CLAUDE.md': '- See [AGENTS.md](AGENTS.md)\n', 'AGENTS.md': '' });
+  mkdirSync(join(github, '.github'));
+  symlinkSync('../CLAUDE.md', join(github, '.github/copilot-instructions.md'));
+  assert.deepEqual(findAgentFiles(github).map((p) => p.slice(github.length + 1)), ['AGENTS.md', 'CLAUDE.md'], 'linted under the real path');
   const copied = tempRepo({ 'AGENTS.md': '- A rule here\n', 'CLAUDE.md': '- A rule here\n' });
   assert.deepEqual(rules(lintFile(join(copied, 'AGENTS.md'), copied)), []);
   const body = Array.from({ length: 20 }, (_, n) => `- Rule number ${n} goes here`).join('\n');
