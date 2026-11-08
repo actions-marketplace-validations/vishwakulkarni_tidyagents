@@ -42,10 +42,16 @@ const RUN_SCRIPT = /\b(?:npm|pnpm) run (\w(?:[\w:.-]*\w)?)(?![\w:-])/g;
 // Paths outside the repo's files, or elided examples like `src/.../x`.
 const UNCHECKABLE_PATH = /^\.\.?\/|^\.git\/|^node_modules\/|\.\.\./;
 // Lines about files to create, examples or optional files name paths that needn't exist.
-const NOT_A_REFERENCE = /\be\.g\.|\b(create[sd]?|generated?|if present|if it exists)\b/i;
+// Judged over the whole bullet or paragraph, since sentences wrap across lines.
+const NOT_A_REFERENCE = /\be\.g\.|\b(create[sd]?|generated?|if present|if it exists|outputs?|log files?|writes? (?:to|into))\b/i;
+// "(`src/x.py` in getsentry/sentry)": a path in another repository.
+const OTHER_REPO = /\b(?:in|from)\s+(?:the\s+)?([\w-]+)\/[\w.-]+/g;
 const TOP_BULLET = /^(?:[-*+]|\d+\.)\s+/;
 // A line that is only a bold label ("**proven:**") starts a new section, like a heading.
 const BOLD_LABEL = /^\s*\*\*[^*]+\*\*:?\s*$/;
+// So does an unindented plain line ending in a colon ("For DIY parts:").
+// Bold and italic labels count too: "**Outside counsel** (handoff):", "*Recognize revenue:*".
+const COLON_LABEL = /^(?![-*+]\s)[^\s|>#].*:[*_]*\s*$/;
 // Contradictions are only judged between explicit rules ("always X" / "never X").
 const NEGATIVE = /\b(never|dont|do not)\b/;
 const POSITIVE = /\b(always|must)\b/;
@@ -76,7 +82,8 @@ function findFiles(root, matches) {
   const walk = (dir) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.isDirectory()) {
-        const hidden = entry.name.startsWith('.') && !AGENT_DIRS.has(entry.name);
+        // Skill catalogs keep tiers in hidden folders, like openai/skills' `skills/.curated/`.
+        const hidden = entry.name.startsWith('.') && !AGENT_DIRS.has(entry.name) && basename(dir) !== 'skills';
         if (!hidden && !SKIP_DIRS.has(entry.name)) walk(join(dir, entry.name));
       } else if (entry.isFile() && matches(entry.name)) {
         found.push(join(dir, entry.name));
@@ -129,11 +136,35 @@ function pathExists(span, fileDir, root) {
   const path = span.replace(/^\.\//, '').replace(/\/$/, '');
   if (!/^[\w.\-/]+$/.test(path) || !path.includes('/') || UNCHECKABLE_PATH.test(path)) return null;
   const top = path.split('/')[0];
-  const anchored = top ? bases.filter((base) => existsSync(join(base, top))) : [];
+  // Exact case: on macOS `PostHog/posthog` would otherwise anchor on a `posthog/` folder.
+  const anchored = top ? bases.filter((base) => isDir(base) && readdirSync(base).includes(top)) : [];
   if (!anchored.length) return null;
-  if (anchored.some((base) => existsSync(join(base, path)))) return true;
+  if (anchored.some((base) => existsSync(join(base, path)) || isModulePath(join(base, path)))) return true;
   // Build output, caches and local config are gitignored: absent from a fresh clone by design.
-  return anchored.some((base) => isGitIgnored(base, path) || inSubmodule(root, join(base, path))) ? null : false;
+  if (anchored.some((base) => isGitIgnored(base, path) || inSubmodule(root, join(base, path)))) return null;
+  // A path that exists inside each package (`.claude-plugin/plugin.json`) names a per-folder convention.
+  return packageDirs(root).some((dir) => existsSync(join(dir, path))) ? null : false;
+}
+
+// Folders one and two levels below the root: where packages and plugins live.
+const packages = new Map();
+function packageDirs(root) {
+  if (!packages.has(root)) {
+    const children = (dir) => readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !e.name.startsWith('.') && !SKIP_DIRS.has(e.name))
+      .map((e) => join(dir, e.name));
+    const level1 = children(root);
+    packages.set(root, [...level1, ...level1.flatMap(children)]);
+  }
+  return packages.get(root);
+}
+
+// True when the line names another repository ("in owner/repo") whose owner isn't a local folder.
+function mentionsOtherRepo(line, fileDir, root) {
+  for (const [, owner] of line.replace(CODE_SPAN, ' ').matchAll(OTHER_REPO)) {
+    if (!existsSync(join(fileDir, owner)) && !existsSync(join(root, owner))) return true;
+  }
+  return false;
 }
 
 // Submodules are empty until `git submodule update`, as in most CI checkouts, so
@@ -178,6 +209,13 @@ function localFileExists(target, fileDir, root) {
   if (!existsSync(resolve(fileDir, ...parts.slice(0, Math.min(up + 1, parts.length - 1))))) return null;
   if (isGenerated(full) || inSubmodule(root, full)) return null;
   return isGitIgnored(root, rel) ? null : false;
+}
+
+// Code imports name modules without their extension: `api/composer` is `api/composer.ts`.
+function isModulePath(full) {
+  const name = basename(full);
+  if (name.includes('.') || !isDir(dirname(full))) return false;
+  return readdirSync(dirname(full)).some((f) => f.startsWith(`${name}.`) && !f.slice(name.length + 1).includes('.'));
 }
 
 function isGenerated(full) {
@@ -301,17 +339,20 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false, skill
     blankRun = [];
   };
 
+  let paragraph = '';
   lines.forEach((line, i) => {
-    if (fenced[i]) return flushBlanks();
-    if (line.trim() === '') return blankRun.push(i);
+    if (fenced[i]) return (paragraph = ''), flushBlanks();
+    if (line.trim() === '') return (paragraph = ''), blankRun.push(i);
     flushBlanks();
 
     const isHeading = /^\s*#/.test(line);
-    if (isHeading || BOLD_LABEL.test(line)) seen = new Map();
+    paragraph = isHeading || BULLET.test(line) ? line : `${paragraph} ${line}`;
+    const reference = !NOT_A_REFERENCE.test(paragraph) && !mentionsOtherRepo(line, fileDir, root);
+    if (isHeading || BOLD_LABEL.test(line) || (COLON_LABEL.test(line) && !BULLET.test(line))) seen = new Map();
 
     let workingRefs = 0;
     // Skills describe whatever project they run in, so their paths aren't checked.
-    const checkPaths = !skill && !NOT_A_REFERENCE.test(line);
+    const checkPaths = !skill && reference;
     for (const [, span] of checkPaths ? line.matchAll(CODE_SPAN) : []) {
       const exists = pathExists(span, fileDir, root);
       if (exists) workingRefs++;
@@ -319,7 +360,7 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false, skill
       else if (exists === false) add('missing-path', 'error', i, `references \`${span}\`, which does not exist`);
     }
     // Links are explicit file references, so they are checked in skills too (against the skill's folder).
-    if (!NOT_A_REFERENCE.test(line)) {
+    if (reference) {
       for (const [, target] of line.replace(CODE_SPAN, ' ').matchAll(LINK)) {
         const exists = localFileExists(target, fileDir, root);
         if (exists) workingRefs++;
@@ -358,8 +399,10 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false, skill
     // Only top-level bullets repeated within one section: across sections, or nested
     // under different parents, repeats are usually deliberate.
     if (TOP_BULLET.test(line)) {
-      if (seen.has(norm)) add('duplicate', 'warn', i, `repeats line ${seen.get(norm) + 1} in the same section`, [i]);
-      else seen.set(norm, i);
+      // Code spans are compared exactly: `10-11-C` and `10:11:C` are different values.
+      const key = `${normalize(line.replace(CODE_SPAN, ' '))}\0${[...line.matchAll(CODE_SPAN)].map((m) => m[1]).join('\0')}`;
+      if (seen.has(key)) add('duplicate', 'warn', i, `repeats line ${seen.get(key) + 1} in the same section`, [i]);
+      else seen.set(key, i);
     }
 
     const negative = NEGATIVE.test(norm);
@@ -464,6 +507,13 @@ function readRepoScripts(root) {
   return repoScripts.get(root);
 }
 
+// Copies that differ only in a line or two (usually the title) carry the same rules.
+function nearlySame(a, b) {
+  const [x, y] = [splitLines(a), splitLines(b)];
+  const changed = x.filter((line, i) => line !== y[i]).length;
+  return x.length === y.length && changed <= 2 && changed * 10 <= x.length;
+}
+
 // When a folder has both, Claude Code reads only CLAUDE.md. That is fine if CLAUDE.md
 // imports or points at AGENTS.md; otherwise the two drift and Claude misses AGENTS.md.
 function shadowingClaudeFile(path) {
@@ -476,7 +526,7 @@ function shadowingClaudeFile(path) {
   // A symlink or an identical copy gives Claude the same rules.
   const pointsHere = (p) => {
     const text = readFileSync(join(dir, p), 'utf8');
-    return realpathSync(join(dir, p)) === self || text === own || text.includes('AGENTS.md');
+    return realpathSync(join(dir, p)) === self || nearlySame(text, own) || text.includes('AGENTS.md');
   };
   return claude.some(pointsHere) ? null : claude[0];
 }

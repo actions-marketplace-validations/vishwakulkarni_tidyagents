@@ -65,6 +65,24 @@ test('skips paths and links inside git submodules that are not checked out', () 
   assert.deepEqual(lint(text, root).issues.map((i) => [i.rule, i.line]), [['missing-path', 2]]);
 });
 
+test('skips per-package paths, other repos and files the agent writes', () => {
+  const root = tempRepo({ '.claude-plugin/marketplace.json': '', 'legal/.claude-plugin/plugin.json': '', 'src/a.ts': '', 'eval/replay.md': '' });
+  const text = [
+    "- Match the plugin's own `.claude-plugin/plugin.json` field",
+    "- Mirrors Sentry's parser (`src/sentry/utils/groupreference.py` in getsentry/sentry)",
+    '- Your only outputs are words: entries in the log files (`lessons.md`,',
+    '  `eval/shadow-log.md`); nothing else',
+    '- Old helper `src/b.ts` is gone',
+  ].join('\n');
+  assert.deepEqual(lint(`${text}\n`, root).issues.map((i) => [i.rule, i.line]), [['missing-path', 5]]);
+});
+
+test('accepts module paths without an extension, and matches folder case exactly', () => {
+  const root = tempRepo({ 'api/composer.ts': '', 'posthog/x.py': '' });
+  const text = '- See `api/composer` and the `PostHog/posthog` repo\n- Gone: `api/runner`\n';
+  assert.deepEqual(lint(text, root).issues.map((i) => [i.rule, i.line]), [['missing-path', 2]]);
+});
+
 test('skips path checks in SKILL.md, which describes other projects', () => {
   const root = tempRepo({ 'src/app.js': '', 'skills/x/SKILL.md': `${SKILL_FM}- Read \`src/missing.js\`\n` });
   assert.deepEqual(lintFile(join(root, 'skills/x/SKILL.md'), root).issues, []);
@@ -116,6 +134,19 @@ test('only flags duplicate bullets within one section', () => {
 test('ignores nested bullets and bold-label sections for duplicates', () => {
   const text = '- List page\n  - Root component\n- Edit page\n  - Root component\n\n**established:**\n- Total feedback at least three\n\n**deprecated:**\n- Total feedback at least three\n';
   assert.deepEqual(rules(lint(text)), []);
+});
+
+test('compares code spans exactly when looking for duplicates', () => {
+  const text = '- `10-112998590-C-T`\n- `10:112998590-C-T`\n- `10:112998590:C:T`\n- `10:112998590:C:T`\n';
+  assert.deepEqual(lint(text).issues.map((i) => [i.rule, i.line]), [['duplicate', 4]]);
+});
+
+test('a plain label line ending in a colon starts a new duplicate section', () => {
+  const text = 'For prebuilt kits:\n\n1. SSH into the Pi to confirm it works\n\nFor DIY parts:\n\n1. SSH into the Pi to confirm it works\n';
+  assert.deepEqual(rules(lint(text)), []);
+  assert.deepEqual(rules(lint('- SSH into the Pi to confirm it works\n  continues here:\n- SSH into the Pi to confirm it works\n')), ['duplicate']);
+  const emphasis = '**Internal summary** (for HR):\n- Header: work product header here\n\n*Outside counsel briefing:*\n- Header: work product header here\n';
+  assert.deepEqual(rules(lint(emphasis)), []);
 });
 
 test('only checks npm and pnpm scripts, since yarn and bun also run binaries', () => {
@@ -182,11 +213,13 @@ test('finds agent files and skips node_modules and hidden folders', () => {
     '.cache/AGENTS.md': '',
     '.agents/skills/y/SKILL.md': '',
     '.codex/AGENTS.md': '',
+    'skills/.curated/z/SKILL.md': '',
+    'docs/.hidden/AGENTS.md': '',
   });
   const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
   assert.deepEqual(found, [
     '.agents/skills/y/SKILL.md', '.claude/skills/x/SKILL.md', '.codex/AGENTS.md',
-    '.github/copilot-instructions.md', 'AGENTS.md', 'packages/api/CLAUDE.md',
+    '.github/copilot-instructions.md', 'AGENTS.md', 'packages/api/CLAUDE.md', 'skills/.curated/z/SKILL.md',
   ]);
 });
 
@@ -302,6 +335,9 @@ test('warns when CLAUDE.md shadows an AGENTS.md it never mentions', () => {
   assert.deepEqual(findAgentFiles(linked).map((p) => p.slice(linked.length + 1)), ['AGENTS.md'], 'symlink checked once');
   const copied = tempRepo({ 'AGENTS.md': '- A rule here\n', 'CLAUDE.md': '- A rule here\n' });
   assert.deepEqual(rules(lintFile(join(copied, 'AGENTS.md'), copied)), []);
+  const body = Array.from({ length: 20 }, (_, n) => `- Rule number ${n} goes here`).join('\n');
+  const retitled = tempRepo({ 'AGENTS.md': `# Notes for agents\n${body}\n`, 'CLAUDE.md': `# Notes for Claude\n${body}\n` });
+  assert.deepEqual(rules(lintFile(join(retitled, 'AGENTS.md'), retitled)), [], 'only the title differs');
 });
 
 test('scoped rule files get the on-demand size budget', () => {
