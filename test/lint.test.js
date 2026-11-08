@@ -203,7 +203,7 @@ test('warns on large files', () => {
   assert.equal(result.issues[0].rule, 'size');
 });
 
-test('finds agent files and skips node_modules and hidden folders', () => {
+test('finds agent files and skips node_modules, hidden, template and fixture folders', () => {
   const root = tempRepo({
     'AGENTS.md': '',
     'packages/api/CLAUDE.md': '',
@@ -215,6 +215,9 @@ test('finds agent files and skips node_modules and hidden folders', () => {
     '.codex/AGENTS.md': '',
     'skills/.curated/z/SKILL.md': '',
     'docs/.hidden/AGENTS.md': '',
+    'src/templates/next-app/AGENTS.md': '',
+    'tests/fixtures/broken/CLAUDE.md': '',
+    'community-templates/x/AGENTS.md': '',
   });
   const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
   assert.deepEqual(found, [

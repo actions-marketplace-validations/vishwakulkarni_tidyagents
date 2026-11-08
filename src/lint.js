@@ -14,6 +14,9 @@ const RULE_DIRS = [
   ['.windsurf/rules', /\.md$/, false],
 ];
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'vendor', 'target']);
+// Agent files in these folders describe a generated app or a test case, not this repo,
+// so their paths would all look stale. Pass the file by name to lint it anyway.
+const TEMPLATE_DIRS = new Set(['templates', 'template', 'community-templates', 'fixtures', '__fixtures__', 'testdata']);
 // Hidden folders that hold agent files: Claude Code, and the shared `.agents/skills` of Codex and others.
 const AGENT_DIRS = new Set(['.claude', '.agents', '.codex', '.gemini']);
 
@@ -84,7 +87,7 @@ function findFiles(root, matches) {
       if (entry.isDirectory()) {
         // Skill catalogs keep tiers in hidden folders, like openai/skills' `skills/.curated/`.
         const hidden = entry.name.startsWith('.') && !AGENT_DIRS.has(entry.name) && basename(dir) !== 'skills';
-        if (!hidden && !SKIP_DIRS.has(entry.name)) walk(join(dir, entry.name));
+        if (!hidden && !SKIP_DIRS.has(entry.name) && !TEMPLATE_DIRS.has(entry.name)) walk(join(dir, entry.name));
       } else if (entry.isFile() && matches(entry.name)) {
         found.push(join(dir, entry.name));
       }
