@@ -182,6 +182,29 @@ jobs:
 
 The action runs on the runner's own Node with no install step, and issues show up as inline annotations on the PR's changed files. On any other CI, run `npx -y tidyagents --min-score 80`.
 
+## Use as a pre-commit hook
+
+Renaming a file is the usual way an agent file goes stale, so the hook runs on every commit, not only when an agent file changes. A run takes well under a second.
+
+With the [pre-commit](https://pre-commit.com) framework (v0.4.0 and later):
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/vishwakulkarni/tidyagents
+    rev: v0.4.0
+    hooks:
+      - id: tidyagents
+        # args: [--min-score, "90"]   # default 80
+```
+
+Or as a plain git hook, with no extra tools:
+
+```bash
+printf '#!/bin/sh\nexec npx -y tidyagents --min-score 80\n' > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
 ## Badge
 
 ```bash

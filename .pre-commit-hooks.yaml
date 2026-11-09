@@ -1,0 +1,9 @@
+- id: tidyagents
+  name: tidyagents
+  description: Lint AI agent instruction files (AGENTS.md, CLAUDE.md, Cursor and Copilot rules)
+  entry: tidyagents
+  args: [--min-score, "80"]
+  language: node
+  pass_filenames: false
+  # Moving or renaming any file can leave a stale path in an agent file, so run on every commit.
+  always_run: true
