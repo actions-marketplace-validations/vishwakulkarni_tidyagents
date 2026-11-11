@@ -166,6 +166,24 @@ function packageDirs(root) {
   return packages.get(root);
 }
 
+// Files git tracks, for pointing a stale path at where its file went. Empty outside git.
+const trackedFiles = new Map();
+function repoFiles(root) {
+  if (!trackedFiles.has(root)) {
+    const out = spawnSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+    trackedFiles.set(root, out.status === 0 ? out.stdout.split('\0').filter(Boolean) : []);
+  }
+  return trackedFiles.get(root);
+}
+
+// "; did you mean `new/path.ts`?" when exactly one tracked file has the missing file's name.
+function movedHint(target, root) {
+  const name = basename(target.replace(/[?#].*$/, ''));
+  if (!name.includes('.')) return '';
+  const matches = repoFiles(root).filter((f) => f === name || f.endsWith(`/${name}`));
+  return matches.length === 1 ? `; did you mean \`${matches[0]}\`?` : '';
+}
+
 // True when the line names another repository ("in owner/repo") whose owner isn't a local folder.
 function mentionsOtherRepo(line, fileDir, root) {
   for (const [, owner] of line.replace(CODE_SPAN, ' ').matchAll(OTHER_REPO)) {
@@ -367,14 +385,14 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false, skill
       const exists = pathExists(span, fileDir, root);
       if (exists) workingRefs++;
       // Never auto-removed: the line may describe a file the agent is meant to create.
-      else if (exists === false) add('missing-path', 'error', i, `references \`${span}\`, which does not exist`);
+      else if (exists === false) add('missing-path', 'error', i, `references \`${span}\`, which does not exist${movedHint(span, root)}`);
     }
     // Links are explicit file references, so they are checked in skills too (against the skill's folder).
     if (reference) {
       for (const [, target] of line.replace(CODE_SPAN, ' ').matchAll(LINK)) {
         const exists = localFileExists(target, fileDir, root);
         if (exists) workingRefs++;
-        else if (exists === false) add('missing-path', 'error', i, `links to \`${target}\`, which does not exist`);
+        else if (exists === false) add('missing-path', 'error', i, `links to \`${target}\`, which does not exist${movedHint(target, root)}`);
       }
     }
     for (const target of checkPaths ? importsOn(line) : []) {
