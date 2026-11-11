@@ -327,6 +327,17 @@ test('honors tidyagents-disable comments', () => {
   assert.deepEqual(rules(lint(`<!-- tidyagents-disable-file -->\n${text}\n`)), []);
 });
 
+test('hints at AGENTS.md only when a repo has .cursorrules without one', () => {
+  const cursorOnly = tempRepo({ '.cursorrules': '- A rule here\n' });
+  const result = lintFile(join(cursorOnly, '.cursorrules'), cursorOnly);
+  assert.deepEqual(rules(result), ['no-agents-md']);
+  assert.equal(result.issues[0].severity, 'info');
+  const both = tempRepo({ '.cursorrules': '- A rule here\n', 'AGENTS.md': '- A rule here\n' });
+  assert.deepEqual(rules(lintFile(join(both, '.cursorrules'), both)), []);
+  const claude = tempRepo({ 'CLAUDE.md': '- A rule here\n' });
+  assert.deepEqual(rules(lintFile(join(claude, 'CLAUDE.md'), claude)), []);
+});
+
 test('warns when CLAUDE.md shadows an AGENTS.md it never mentions', () => {
   const shadowed = tempRepo({ 'AGENTS.md': '- A rule here\n', 'CLAUDE.md': '- Another rule\n' });
   assert.deepEqual(rules(lintFile(join(shadowed, 'AGENTS.md'), shadowed)), ['shadowed']);
