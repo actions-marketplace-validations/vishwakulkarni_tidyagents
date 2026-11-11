@@ -425,3 +425,16 @@ test('cli: --json prints valid JSON when no files are found', () => {
 test('cli: unknown file is a usage error', () => {
   assert.equal(cli(tempRepo({}), 'nope.md').status, 2);
 });
+
+test('missing-path names where a moved file went when exactly one tracked file has its name', () => {
+  const root = tempRepo({ 'src/features/ConfigLoader.ts': '', 'src/a/util.ts': '', 'src/b/util.ts': '' });
+  spawnSync('git', ['init', '-q'], { cwd: root });
+  spawnSync('git', ['add', '.'], { cwd: root });
+  const text = '- Config: `src/ConfigLoader.ts`\n- Helpers: `src/util.ts`\n- See [loader](src/ConfigLoader.ts)\n';
+  const messages = lint(text, root).issues.map((i) => i.message);
+  assert.deepEqual(messages, [
+    'references `src/ConfigLoader.ts`, which does not exist; did you mean `src/features/ConfigLoader.ts`?',
+    'references `src/util.ts`, which does not exist',
+    'links to `src/ConfigLoader.ts`, which does not exist; did you mean `src/features/ConfigLoader.ts`?',
+  ]);
+});
