@@ -304,7 +304,7 @@ function fencedLines(lines) {
   });
 }
 
-export function lintText(text, { fileDir, root, scripts, onDemand = false, skill = onDemand, shadowedBy = null, path = null }) {
+export function lintText(text, { fileDir, root, scripts, onDemand = false, skill = onDemand, shadowedBy = null, cursorOnly = false, path = null }) {
   const lines = splitLines(text);
   const fenced = fencedLines(lines);
   const issues = [];
@@ -320,6 +320,9 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false, skill
   if (shadowedBy) {
     add('shadowed', 'warn', null,
       `Claude Code reads ${shadowedBy} instead of this file; add \`@AGENTS.md\` to ${shadowedBy} so Claude gets these rules too`);
+  }
+  if (cursorOnly) {
+    add('no-agents-md', 'info', null, 'only Cursor reads `.cursorrules`; move these rules to an `AGENTS.md` so other coding agents get them too');
   }
 
   // Skills and scoped rules load only when used, so they get a bigger budget than always-loaded files.
@@ -545,6 +548,7 @@ export function lintOptions(path, root) {
     fileDir: dirname(path), root, path, onDemand,
     scripts: onDemand ? null : readRepoScripts(root),
     shadowedBy: shadowingClaudeFile(path),
+    cursorOnly: basename(path) === '.cursorrules' && !isFile(join(root, 'AGENTS.md')),
   };
 }
 

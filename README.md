@@ -144,6 +144,7 @@ You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it 
 | `size`: over 2,000 tokens (warn) or 4,000 (error), counting files pulled in with `@imports`. `SKILL.md` files and scoped rules (`paths`, `globs`, `applyTo`) load only when used, so 5,000 / 10,000 | warn/error | no |
 | `skill-frontmatter`: a `SKILL.md` with no `description`, unclosed frontmatter, a `name` outside the [Agent Skills spec](https://agentskills.io/specification) (lowercase, digits, hyphens, ≤64), or a description longer than the spec's 1,024 or Claude Code's 1,536-character listing | warn/error | no |
 | `shadowed`: an `AGENTS.md` next to a `CLAUDE.md` that never mentions it. Claude Code then reads only `CLAUDE.md`, so add `@AGENTS.md` to it | warn | no |
+| `no-agents-md`: a `.cursorrules` with no `AGENTS.md` at the repo root, so only Cursor gets those rules | info | no |
 | `blank-lines`: runs of blank lines | info | collapses them |
 
 Content inside code fences and YAML frontmatter is ignored, and table rows are ignored for duplicates and contradictions.
