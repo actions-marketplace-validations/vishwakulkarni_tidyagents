@@ -1,0 +1,28 @@
+{
+  "manifestVersion": 2,
+  "execution": "trusted-worker",
+  "id": "tidyagents",
+  "name": "tidyagents",
+  "version": "0.3.0",
+  "description": "Scores the agent instruction files (AGENTS.md, CLAUDE.md, .cursorrules, SKILL.md) of the focused workspace, and warns when an agent's changes leave them stale.",
+  "author": { "name": "Vishwanath Kulkarni", "url": "https://github.com/vishwakulkarni" },
+  "repository": "https://github.com/vishwakulkarni/tidyagents",
+  "homepage": "https://github.com/vishwakulkarni/tidyagents#readme",
+  "license": "Apache-2.0",
+  "icon": "docs/logo/icon-512.png",
+  "engines": { "orca": ">=1.4.248" },
+  "pluginApi": 1,
+  "main": "orca/worker.mjs",
+  "contributes": {
+    "commands": [{ "id": "check", "title": "tidyagents: Check agent files", "when": "workspace" }],
+    "statusBarItems": [
+      { "id": "score", "text": "agents", "icon": "check", "tooltip": "tidyagents: agent file score", "command": "check" }
+    ],
+    "events": [{ "on": "workspace.changed" }, { "on": "agent.status.changed" }]
+  },
+  "capabilities": [
+    { "kind": "workspace:read" },
+    { "kind": "agent:read" },
+    { "kind": "notifications:show" }
+  ]
+}

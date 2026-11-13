@@ -582,6 +582,14 @@ export function overallScore(results) {
   return results.length ? Math.min(...results.map((r) => r.score)) : 100;
 }
 
+// Lints every agent file in the repo (or the given files). Each call starts from fresh repo
+// caches, so editors and other long-running hosts see renames, new scripts and new files.
+export function lintRepo(root, files = null) {
+  for (const cache of [packages, trackedFiles, submodules, repoScripts]) cache.delete(root);
+  const results = (files ?? findAgentFiles(root)).map((file) => lintFile(file, root));
+  return { score: overallScore(results), results };
+}
+
 export function badgeMarkdown(score) {
   const color = score >= 90 ? 'brightgreen' : score >= 70 ? 'yellow' : score >= 50 ? 'orange' : 'red';
   return `![tidyagents](https://img.shields.io/badge/tidyagents-${score}%2F100-${color})`;

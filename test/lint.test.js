@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync, syml
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { lintText, lintFile, applyFixes, findAgentFiles, badgeMarkdown } from '../src/lint.js';
+import { lintText, lintFile, lintRepo, applyFixes, findAgentFiles, badgeMarkdown } from '../src/lint.js';
 
 const BIN = new URL('../bin/tidyagents.js', import.meta.url).pathname;
 
@@ -437,4 +437,25 @@ test('missing-path names where a moved file went when exactly one tracked file h
     'references `src/util.ts`, which does not exist',
     'links to `src/ConfigLoader.ts`, which does not exist; did you mean `src/features/ConfigLoader.ts`?',
   ]);
+});
+
+test('lintRepo sees scripts added after an earlier run, for long-running hosts like editors', () => {
+  const root = tempRepo({ 'package.json': '{"scripts":{}}', 'AGENTS.md': '- Test: `npm run test`\n' });
+  assert.deepEqual(lintRepo(root).results[0].issues.map((i) => i.rule), ['missing-script']);
+  writeFileSync(join(root, 'package.json'), '{"scripts":{"test":"node --test"}}');
+  const { score, results } = lintRepo(root);
+  assert.equal(score, 100);
+  assert.equal(results[0].file, 'AGENTS.md');
+});
+
+test('the package entry point is the lint library', async () => {
+  const lib = await import('tidyagents');
+  assert.equal(typeof lib.lintRepo, 'function');
+  assert.equal(typeof lib.lintText, 'function');
+});
+
+test('the VS Code extension and Orca plugin carry the CLI version, since one tag releases all three', () => {
+  const version = (path) => JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')).version;
+  assert.equal(version('vscode/package.json'), version('package.json'));
+  assert.equal(version('orca-plugin.json'), version('package.json'));
 });

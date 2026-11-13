@@ -11,6 +11,10 @@
   "homepage": "https://github.com/vishwakulkarni/tidyagents#readme",
   "bugs": "https://github.com/vishwakulkarni/tidyagents/issues",
   "type": "module",
+  "exports": {
+    ".": "./src/lint.js",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "tidyagents": "bin/tidyagents.js"
   },
@@ -20,7 +24,7 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test"
+    "test": "node --test test/"
   },
   "engines": {
     "node": ">=18.3"

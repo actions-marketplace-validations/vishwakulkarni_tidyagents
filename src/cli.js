@@ -3,7 +3,7 @@ import { join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { createInterface } from 'node:readline/promises';
 import {
-  findAgentFiles, lintFile, lintOptions, lintText, applyFixes, overallScore, badgeMarkdown, readScripts,
+  lintRepo, lintOptions, lintText, applyFixes, overallScore, badgeMarkdown, readScripts,
 } from './lint.js';
 
 const COMMANDS = new Set(['check', 'fix', 'badge', 'init']);
@@ -39,11 +39,10 @@ const ICON = { error: red('✗'), warn: yellow('⚠'), info: dim('·') };
 const scoreColor = (score) => (score >= 90 ? green : score >= 70 ? yellow : red);
 
 function lintTargets(paths, root) {
-  const files = paths.length ? paths : findAgentFiles(root);
-  for (const file of files) {
+  for (const file of paths) {
     if (!existsSync(file)) throw new UsageError(`File not found: ${file}`);
   }
-  return files.map((file) => lintFile(file, root));
+  return lintRepo(root, paths.length ? paths : null).results;
 }
 
 class UsageError extends Error {}

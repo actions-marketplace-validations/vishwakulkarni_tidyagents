@@ -206,6 +206,20 @@ printf '#!/bin/sh\nexec npx -y tidyagents --min-score 80\n' > .git/hooks/pre-com
 chmod +x .git/hooks/pre-commit
 ```
 
+## Use in your editor
+
+The same linter runs as you work. No setup is needed, and nothing leaves your machine.
+
+**VS Code, Cursor, Antigravity and Windsurf:** install **tidyagents** from the Extensions view: the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=vishwakulkarni.tidyagents) for VS Code, and [Open VSX](https://open-vsx.org/extension/vishwakulkarni/tidyagents) for the others. Issues show up in the Problems panel, the score sits in the status bar, and quick fixes remove duplicates and dead lines. Creating, deleting or renaming any file re-checks the agent files, so you see a stale path as soon as you cause one. See [`vscode/`](vscode/README.md).
+
+**[Orca](https://github.com/stablyai/orca)** (v0.4.0 and later):
+
+```bash
+orca plugin install vishwakulkarni/tidyagents
+```
+
+The status bar shows the score of the focused workspace's agent files. When an agent finishes and leaves them below 80, you get a notification. The **tidyagents: Check agent files** command lists the issues. Orca asks you to approve what the plugin can access: reading your workspaces and agent status, and showing notifications.
+
 ## Badge
 
 ```bash

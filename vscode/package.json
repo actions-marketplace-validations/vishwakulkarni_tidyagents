@@ -1,0 +1,65 @@
+{
+  "name": "tidyagents",
+  "displayName": "tidyagents",
+  "description": "Lint and score AI agent instruction files (AGENTS.md, CLAUDE.md, .cursorrules, SKILL.md and more) as you edit.",
+  "version": "0.3.0",
+  "publisher": "vishwakulkarni",
+  "author": "Vishwanath Kulkarni",
+  "license": "Apache-2.0",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vishwakulkarni/tidyagents.git",
+    "directory": "vscode"
+  },
+  "homepage": "https://github.com/vishwakulkarni/tidyagents#readme",
+  "bugs": "https://github.com/vishwakulkarni/tidyagents/issues",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Linters",
+    "AI"
+  ],
+  "keywords": [
+    "agents.md",
+    "claude.md",
+    "cursorrules",
+    "copilot",
+    "ai agents"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/AGENTS.md",
+    "workspaceContains:**/CLAUDE.md",
+    "workspaceContains:**/GEMINI.md",
+    "workspaceContains:**/SKILL.md",
+    "workspaceContains:.cursorrules",
+    "workspaceContains:.windsurfrules",
+    "workspaceContains:.clinerules",
+    "workspaceContains:.github/copilot-instructions.md",
+    "workspaceContains:.cursor/rules/**",
+    "workspaceContains:.claude/rules/**"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "tidyagents.check",
+        "title": "Check agent files",
+        "category": "tidyagents"
+      },
+      {
+        "command": "tidyagents.fixFile",
+        "title": "Apply safe fixes to this file",
+        "category": "tidyagents"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "node prepare.mjs",
+    "test": "node prepare.mjs && node test/run.mjs"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "^3.1.0"
+  }
+}
