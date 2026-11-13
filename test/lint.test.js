@@ -240,12 +240,33 @@ test('finds rule folders, local and override files', () => {
     '.github/instructions/README.md': '',
     '.clinerules/style.md': '',
     '.clinerules/workflows/release.md': '',
+    '.roorules': '',
+    '.roo/rules/style.md': '',
+    '.roo/rules-code/tests.md': '',
+    '.roo/notes.md': '',
+    '.agents/rules/style.md': '',
+    '.agent/rules/old.md': '',
+    '.agents/workflows/release.md': '',
+    '.kiro/steering/product.md': '',
+    '.kiro/specs/feature/design.md': '',
+    'packages/web/.cursor/rules/ui.mdc': '',
+    'packages/web/.windsurf/rules/ui.md': '',
+    'packages/web/.github/instructions/x.instructions.md': '',
   });
   const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
   assert.deepEqual(found, [
-    '.claude/rules/api/style.md', '.claude/rules/testing.md', '.clinerules/style.md', '.cursor/rules/react.mdc',
-    '.github/instructions/ts.instructions.md', '.windsurfrules', 'AGENTS.override.md', 'CLAUDE.local.md',
+    '.agent/rules/old.md', '.agents/rules/style.md', '.claude/rules/api/style.md', '.claude/rules/testing.md',
+    '.clinerules/style.md', '.cursor/rules/react.mdc', '.github/instructions/ts.instructions.md',
+    '.kiro/steering/product.md', '.roo/rules-code/tests.md', '.roo/rules/style.md', '.roorules', '.windsurfrules',
+    'AGENTS.override.md', 'CLAUDE.local.md', 'packages/web/.cursor/rules/ui.mdc', 'packages/web/.windsurf/rules/ui.md',
   ]);
+});
+
+test('finds skills in every tool folder that loads them', () => {
+  const dirs = ['.github', '.windsurf', '.cline', '.kiro', '.agent', '.agents', '.claude', '.cursor', '.codex', '.gemini'];
+  const root = tempRepo(Object.fromEntries(dirs.map((dir) => [`${dir}/skills/s/SKILL.md`, ''])));
+  const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
+  assert.deepEqual(found, dirs.map((dir) => `${dir}/skills/s/SKILL.md`).sort());
 });
 
 test('flags broken markdown links, relative to the file', () => {
@@ -371,6 +392,10 @@ test('scoped rule files get the on-demand size budget', () => {
   assert.deepEqual(size('.claude/rules/all.md', ''), ['size']);
   assert.deepEqual(size('.cursor/rules/a.mdc', '---\nalwaysApply: true\n---\n'), ['size']);
   assert.deepEqual(size('.cursor/rules/b.mdc', '---\ndescription: React\nalwaysApply: false\n---\n'), []);
+  assert.deepEqual(size('.kiro/steering/api.md', '---\ninclusion: fileMatch\nfileMatchPattern: "src/api/**"\n---\n'), []);
+  assert.deepEqual(size('.kiro/steering/all.md', '---\ninclusion: always\n---\n'), ['size']);
+  assert.deepEqual(size('.windsurf/rules/manual.md', '---\ntrigger: manual\n---\n'), []);
+  assert.deepEqual(size('.windsurf/rules/all.md', '---\ntrigger: always_on\n---\n'), ['size']);
 });
 
 test('does not count imported agent files twice', () => {

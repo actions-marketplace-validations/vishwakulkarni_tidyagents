@@ -1,6 +1,6 @@
 # tidyagents for VS Code, Cursor, Antigravity and Windsurf
 
-Lint and score your AI agent instruction files as you edit: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `SKILL.md`, `.cursorrules`, `.github/copilot-instructions.md`, and the rule folders of Claude Code, Cursor, Copilot, Cline and Windsurf.
+Lint and score your AI agent instruction files as you edit: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `SKILL.md`, `.cursorrules`, `.github/copilot-instructions.md`, and the rule folders of Claude Code, Cursor, Copilot, Cline, Windsurf, Antigravity, Kiro and Roo Code.
 
 Agent files rot quietly. Code moves and files get renamed, and the instructions your agent reads every session keep pointing at things that no longer exist. This extension flags that as it happens.
 

@@ -131,7 +131,7 @@ async function activate(context) {
   const relint = debounce(lintOpenDocument, 300);
   const watcher = vscode.workspace.createFileSystemWatcher('**/*', false, true, false);
   // Edits made outside the editor (an agent in a terminal) change scripts and agent files too.
-  const contentWatcher = vscode.workspace.createFileSystemWatcher('**/{package.json,*.md,*.mdc,.cursorrules,.windsurfrules,.clinerules}', true, false, true);
+  const contentWatcher = vscode.workspace.createFileSystemWatcher('**/{package.json,*.md,*.mdc,.cursorrules,.windsurfrules,.clinerules,.roorules}', true, false, true);
   const isAgentFile = (document) => agentFiles.has(document.uri.fsPath);
 
   context.subscriptions.push(

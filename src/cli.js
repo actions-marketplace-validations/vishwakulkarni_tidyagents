@@ -26,7 +26,8 @@ Options
 
 With no files given, it finds AGENTS.md, CLAUDE.md, GEMINI.md, SKILL.md,
 .cursorrules, .github/copilot-instructions.md and the rule folders of
-Claude Code, Cursor, Copilot, Cline and Windsurf in the current folder.
+Claude Code, Cursor, Copilot, Cline, Windsurf, Antigravity, Kiro and Roo
+Code in the current folder.
 
 Silence a finding with <!-- tidyagents-disable-next-line rule --> above it,
 or <!-- tidyagents-disable-file rule --> anywhere in the file.`;

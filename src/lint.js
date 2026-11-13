@@ -3,23 +3,30 @@ import { spawnSync } from 'node:child_process';
 import { join, basename, dirname, relative, isAbsolute, resolve } from 'node:path';
 
 const AGENT_FILE_NAMES = new Set(['AGENTS.md', 'AGENTS.override.md', 'CLAUDE.md', 'CLAUDE.local.md', 'GEMINI.md', 'SKILL.md']);
-const ROOT_ONLY_FILES = ['.cursorrules', '.windsurfrules', '.clinerules', '.github/copilot-instructions.md'];
-// Folders of rule files at the repo root, which files in them each tool loads, and
-// whether it looks in subfolders (Cline keeps on-demand workflows and hooks there).
-const RULE_DIRS = [
-  ['.claude/rules', /\.md$/, true],
-  ['.cursor/rules', /\.mdc?$/, true],
-  ['.github/instructions', /\.instructions\.md$/, true],
-  ['.clinerules', /\.md$/, false],
-  ['.windsurf/rules', /\.md$/, false],
+const ROOT_ONLY_FILES = ['.cursorrules', '.windsurfrules', '.clinerules', '.roorules', '.github/copilot-instructions.md'];
+// Rule files each tool loads, by path from the repo root. Cursor and Windsurf also read rule folders
+// in subfolders of the repo; the rest only at the root. Cline keeps on-demand workflows and hooks in
+// subfolders of `.clinerules`, so only its top level counts.
+const RULE_PATHS = [
+  /^(.+\/)?\.claude\/rules\/.+\.md$/,
+  /^(.+\/)?\.cursor\/rules\/.+\.mdc?$/,
+  /^(.+\/)?\.windsurf\/rules\/[^/]+\.md$/,
+  /^\.github\/instructions\/.+\.instructions\.md$/,
+  /^\.clinerules\/[^/]+\.md$/,
+  /^\.agents?\/rules\/[^/]+\.md$/, // Antigravity; `.agent` is its older name
+  /^\.kiro\/steering\/[^/]+\.md$/,
+  /^\.roo\/rules(-[^/]+)?\/.+\.md$/, // Roo Code, with `rules-<mode>` for one mode
 ];
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'vendor', 'target']);
 // Agent files in these folders describe a generated app or a test case, not this repo,
 // so their paths would all look stale. Pass the file by name to lint it anyway.
 const TEMPLATE_DIRS = new Set(['templates', 'template', 'community-templates', 'fixtures', '__fixtures__', 'testdata']);
-// Hidden folders that hold agent files: Claude Code, Cursor's `.cursor/skills`, and the shared
-// `.agents/skills` of Codex and others.
-const AGENT_DIRS = new Set(['.claude', '.cursor', '.agents', '.codex', '.gemini']);
+// Hidden folders that hold agent rules or skills (`<dir>/skills/<name>/SKILL.md`). Other hidden
+// folders are skipped.
+const AGENT_DIRS = new Set([
+  '.claude', '.cursor', '.agents', '.agent', '.codex', '.gemini', '.github', '.windsurf', '.clinerules',
+  '.cline', '.kiro', '.roo',
+]);
 
 const PENALTY = { error: 10, warn: 4, info: 1 };
 const TOKENS_WARN = 2000;
@@ -81,6 +88,7 @@ const SKILL_DESCRIPTION_MAX = 1024;
 // Claude Code truncates description + when_to_use at this length in its skill listing.
 const SKILL_LISTING_MAX = 1536;
 
+// `matches` gets the file name and its path from `root`, with `/` separators.
 function findFiles(root, matches) {
   const found = [];
   const walk = (dir) => {
@@ -89,7 +97,7 @@ function findFiles(root, matches) {
         // Skill catalogs keep tiers in hidden folders, like openai/skills' `skills/.curated/`.
         const hidden = entry.name.startsWith('.') && !AGENT_DIRS.has(entry.name) && basename(dir) !== 'skills';
         if (!hidden && !SKIP_DIRS.has(entry.name) && !TEMPLATE_DIRS.has(entry.name)) walk(join(dir, entry.name));
-      } else if (entry.isFile() && matches(entry.name)) {
+      } else if (entry.isFile() && matches(entry.name, relative(root, join(dir, entry.name)).split('\\').join('/'))) {
         found.push(join(dir, entry.name));
       }
     }
@@ -103,19 +111,13 @@ const isDir = (path) => existsSync(path) && statSync(path).isDirectory();
 
 export function findAgentFiles(root) {
   const rootOnly = ROOT_ONLY_FILES.map((p) => join(root, p)).filter(isFile);
-  const rules = RULE_DIRS.flatMap(([dir, pattern, recursive]) => {
-    const base = join(root, dir);
-    if (!isDir(base)) return [];
-    if (recursive) return findFiles(base, (name) => pattern.test(name));
-    return readdirSync(base).filter((name) => pattern.test(name)).map((name) => join(base, name)).filter(isFile);
-  });
-  const named = findFiles(root, (name) => AGENT_FILE_NAMES.has(name));
+  const named = findFiles(root, (name, path) => AGENT_FILE_NAMES.has(name) || RULE_PATHS.some((re) => re.test(path)));
   // Symlinked files (CLAUDE.md -> AGENTS.md) and folders are checked once, under the real path when
   // it was found too, so relative links resolve from the folder the content actually lives in.
   const realRoot = realpathSync(root);
   const isReal = (path) => realpathSync(path) === join(realRoot, relative(root, path));
   const byTarget = new Map();
-  for (const path of [...rootOnly, ...rules, ...named].sort()) {
+  for (const path of [...rootOnly, ...named].sort()) {
     const target = realpathSync(path);
     if (!byTarget.has(target) || (isReal(path) && !isReal(byTarget.get(target)))) byTarget.set(target, path);
   }
@@ -454,9 +456,12 @@ export function lintText(text, { fileDir, root, scripts, onDemand = false, skill
 }
 
 // Rule files load only for matching paths (Claude `paths`, Cursor `globs`, Copilot
-// `applyTo`) or when the agent picks them by description, unless marked always-on.
+// `applyTo`) or when the agent picks them by description, unless marked always-on. Kiro steering
+// says so in `inclusion`, Windsurf rules in `trigger`.
 function isScopedRule(path, fm) {
   if (fm.alwaysApply?.value === 'true') return false;
+  if (fm.inclusion) return fm.inclusion.value !== 'always';
+  if (fm.trigger) return fm.trigger.value !== 'always_on';
   if (fm.applyTo) return !/^\*\*(\/\*)?$/.test(fm.applyTo.value);
   if (fm.paths || fm.globs) return true;
   return Boolean(path && /\.(mdc|instructions\.md)$/.test(path));

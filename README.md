@@ -7,7 +7,7 @@
 ![Dependencies: 0](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![Node >=18.3](https://img.shields.io/badge/node-%3E%3D18.3-blue)
 
-Lint, score and tidy your AI agent instruction files: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `SKILL.md`, `.cursorrules`, `.github/copilot-instructions.md`, and the rule folders of Claude Code, Cursor, Copilot, Cline and Windsurf.
+Lint, score and tidy your AI agent instruction files: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `SKILL.md`, `.cursorrules`, `.github/copilot-instructions.md`, and the rule folders of Claude Code, Cursor, Copilot, Cline, Windsurf, Antigravity, Kiro and Roo Code.
 
 Agent files grow quietly. Code moves, files get renamed, and the instructions your agent reads every session keep pointing at things that no longer exist. `tidyagents` finds the rot and cleans up what's safe to clean.
 
@@ -117,11 +117,13 @@ tidyagents badge        # print a README badge for your score
 tidyagents init         # create a starter AGENTS.md
 ```
 
-You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules`, template and fixture folders such as `templates/` and `fixtures/`, and hidden folders other than `.claude`, `.cursor`, `.agents`, `.codex` and `.gemini`) for:
+You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules`, template and fixture folders such as `templates/` and `fixtures/`, and hidden folders other than those of the tools below) for:
 
 - `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `CLAUDE.local.md`, `GEMINI.md` and `SKILL.md` in any folder
-- `.cursorrules`, `.windsurfrules`, `.clinerules` and `.github/copilot-instructions.md` at the root
-- Rule folders at the root: `.claude/rules/**/*.md`, `.cursor/rules/**/*.mdc`, `.github/instructions/**/*.instructions.md`, `.clinerules/*.md` and `.windsurf/rules/*.md`
+- Skills in `<tool>/skills/<name>/SKILL.md` for `.claude`, `.cursor`, `.agents`, `.agent`, `.codex`, `.gemini`, `.github`, `.windsurf`, `.cline` and `.kiro`, and in plain `skills/` folders
+- `.cursorrules`, `.windsurfrules`, `.clinerules`, `.roorules` and `.github/copilot-instructions.md` at the root
+- Rule folders in any folder: `.claude/rules/**/*.md`, `.cursor/rules/**/*.mdc` and `.windsurf/rules/*.md`
+- Rule folders at the root: `.github/instructions/**/*.instructions.md`, `.clinerules/*.md`, `.agents/rules/*.md` (Antigravity, or the older `.agent/rules`), `.kiro/steering/*.md` and `.roo/rules*/**/*.md` (Roo Code)
 
 | Option | |
 |---|---|

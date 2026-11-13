@@ -36,9 +36,16 @@
     "workspaceContains:.cursorrules",
     "workspaceContains:.windsurfrules",
     "workspaceContains:.clinerules",
+    "workspaceContains:.roorules",
     "workspaceContains:.github/copilot-instructions.md",
     "workspaceContains:.cursor/rules/**",
-    "workspaceContains:.claude/rules/**"
+    "workspaceContains:.claude/rules/**",
+    "workspaceContains:**/.cursor/rules/**",
+    "workspaceContains:**/.windsurf/rules/**",
+    "workspaceContains:.agents/rules/**",
+    "workspaceContains:.agent/rules/**",
+    "workspaceContains:.kiro/steering/**",
+    "workspaceContains:.roo/**"
   ],
   "main": "./extension.js",
   "contributes": {
