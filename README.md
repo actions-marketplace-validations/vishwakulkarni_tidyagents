@@ -117,7 +117,7 @@ tidyagents badge        # print a README badge for your score
 tidyagents init         # create a starter AGENTS.md
 ```
 
-You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules`, template and fixture folders such as `templates/` and `fixtures/`, and hidden folders other than `.claude`, `.agents`, `.codex` and `.gemini`) for:
+You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules`, template and fixture folders such as `templates/` and `fixtures/`, and hidden folders other than `.claude`, `.cursor`, `.agents`, `.codex` and `.gemini`) for:
 
 - `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `CLAUDE.local.md`, `GEMINI.md` and `SKILL.md` in any folder
 - `.cursorrules`, `.windsurfrules`, `.clinerules` and `.github/copilot-instructions.md` at the root

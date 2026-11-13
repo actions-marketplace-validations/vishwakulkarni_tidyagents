@@ -17,8 +17,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'vendor', 'target'])
 // Agent files in these folders describe a generated app or a test case, not this repo,
 // so their paths would all look stale. Pass the file by name to lint it anyway.
 const TEMPLATE_DIRS = new Set(['templates', 'template', 'community-templates', 'fixtures', '__fixtures__', 'testdata']);
-// Hidden folders that hold agent files: Claude Code, and the shared `.agents/skills` of Codex and others.
-const AGENT_DIRS = new Set(['.claude', '.agents', '.codex', '.gemini']);
+// Hidden folders that hold agent files: Claude Code, Cursor's `.cursor/skills`, and the shared
+// `.agents/skills` of Codex and others.
+const AGENT_DIRS = new Set(['.claude', '.cursor', '.agents', '.codex', '.gemini']);
 
 const PENALTY = { error: 10, warn: 4, info: 1 };
 const TOKENS_WARN = 2000;

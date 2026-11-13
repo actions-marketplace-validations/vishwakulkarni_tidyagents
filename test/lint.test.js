@@ -208,6 +208,7 @@ test('finds agent files and skips node_modules, hidden, template and fixture fol
     'AGENTS.md': '',
     'packages/api/CLAUDE.md': '',
     '.claude/skills/x/SKILL.md': '',
+    '.cursor/skills/w/SKILL.md': '',
     '.github/copilot-instructions.md': '',
     'node_modules/pkg/AGENTS.md': '',
     '.cache/AGENTS.md': '',
@@ -221,7 +222,7 @@ test('finds agent files and skips node_modules, hidden, template and fixture fol
   });
   const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
   assert.deepEqual(found, [
-    '.agents/skills/y/SKILL.md', '.claude/skills/x/SKILL.md', '.codex/AGENTS.md',
+    '.agents/skills/y/SKILL.md', '.claude/skills/x/SKILL.md', '.codex/AGENTS.md', '.cursor/skills/w/SKILL.md',
     '.github/copilot-instructions.md', 'AGENTS.md', 'packages/api/CLAUDE.md', 'skills/.curated/z/SKILL.md',
   ]);
 });
