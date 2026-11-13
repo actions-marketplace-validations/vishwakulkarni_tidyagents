@@ -7,7 +7,7 @@
 ![Dependencies: 0](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![Node >=18.3](https://img.shields.io/badge/node-%3E%3D18.3-blue)
 
-Lint, score and tidy your AI agent instruction files: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `SKILL.md`, `.cursorrules`, `.github/copilot-instructions.md`, and the rule folders of Claude Code, Cursor, Copilot, Cline and Windsurf.
+Lint, score and tidy your AI agent instruction files: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `SKILL.md`, `.cursorrules`, `.github/copilot-instructions.md`, and the rule folders of Claude Code, Cursor, Copilot, Cline, Windsurf, Antigravity, Kiro and Roo Code.
 
 Agent files grow quietly. Code moves, files get renamed, and the instructions your agent reads every session keep pointing at things that no longer exist. `tidyagents` finds the rot and cleans up what's safe to clean.
 
@@ -117,11 +117,13 @@ tidyagents badge        # print a README badge for your score
 tidyagents init         # create a starter AGENTS.md
 ```
 
-You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules`, template and fixture folders such as `templates/` and `fixtures/`, and hidden folders other than `.claude`, `.agents`, `.codex` and `.gemini`) for:
+You can pass specific files, e.g. `npx tidyagents CLAUDE.md`. With no files, it searches the current folder (skipping `node_modules`, template and fixture folders such as `templates/` and `fixtures/`, and hidden folders other than those of the tools below) for:
 
 - `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `CLAUDE.local.md`, `GEMINI.md` and `SKILL.md` in any folder
-- `.cursorrules`, `.windsurfrules`, `.clinerules` and `.github/copilot-instructions.md` at the root
-- Rule folders at the root: `.claude/rules/**/*.md`, `.cursor/rules/**/*.mdc`, `.github/instructions/**/*.instructions.md`, `.clinerules/*.md` and `.windsurf/rules/*.md`
+- Skills in `<tool>/skills/<name>/SKILL.md` for `.claude`, `.cursor`, `.agents`, `.agent`, `.codex`, `.gemini`, `.github`, `.windsurf`, `.cline` and `.kiro`, and in plain `skills/` folders
+- `.cursorrules`, `.windsurfrules`, `.clinerules`, `.roorules` and `.github/copilot-instructions.md` at the root
+- Rule folders in any folder: `.claude/rules/**/*.md`, `.cursor/rules/**/*.mdc` and `.windsurf/rules/*.md`
+- Rule folders at the root: `.github/instructions/**/*.instructions.md`, `.clinerules/*.md`, `.agents/rules/*.md` (Antigravity, or the older `.agent/rules`), `.kiro/steering/*.md` and `.roo/rules*/**/*.md` (Roo Code)
 
 | Option | |
 |---|---|
@@ -205,6 +207,20 @@ Or as a plain git hook, with no extra tools:
 printf '#!/bin/sh\nexec npx -y tidyagents --min-score 80\n' > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 ```
+
+## Use in your editor
+
+The same linter runs as you work. No setup is needed, and nothing leaves your machine.
+
+**VS Code, Cursor, Antigravity and Windsurf:** install **tidyagents** from the Extensions view: the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=vishwakulkarni.tidyagents) for VS Code, and [Open VSX](https://open-vsx.org/extension/vishwakulkarni/tidyagents) for the others. Issues show up in the Problems panel, the score sits in the status bar, and quick fixes remove duplicates and dead lines. Creating, deleting or renaming any file re-checks the agent files, so you see a stale path as soon as you cause one. See [`vscode/`](vscode/README.md).
+
+**[Orca](https://github.com/stablyai/orca)** (v0.4.0 and later):
+
+```bash
+orca plugin install vishwakulkarni/tidyagents
+```
+
+The status bar shows the score of the focused workspace's agent files. When an agent finishes and leaves them below 80, you get a notification. The **tidyagents: Check agent files** command lists the issues. Orca asks you to approve what the plugin can access: reading your workspaces and agent status, and showing notifications.
 
 ## Badge
 

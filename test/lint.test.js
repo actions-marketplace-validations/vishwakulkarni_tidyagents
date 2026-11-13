@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync, syml
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { lintText, lintFile, applyFixes, findAgentFiles, badgeMarkdown } from '../src/lint.js';
+import { lintText, lintFile, lintRepo, applyFixes, findAgentFiles, badgeMarkdown } from '../src/lint.js';
 
 const BIN = new URL('../bin/tidyagents.js', import.meta.url).pathname;
 
@@ -208,6 +208,7 @@ test('finds agent files and skips node_modules, hidden, template and fixture fol
     'AGENTS.md': '',
     'packages/api/CLAUDE.md': '',
     '.claude/skills/x/SKILL.md': '',
+    '.cursor/skills/w/SKILL.md': '',
     '.github/copilot-instructions.md': '',
     'node_modules/pkg/AGENTS.md': '',
     '.cache/AGENTS.md': '',
@@ -221,7 +222,7 @@ test('finds agent files and skips node_modules, hidden, template and fixture fol
   });
   const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
   assert.deepEqual(found, [
-    '.agents/skills/y/SKILL.md', '.claude/skills/x/SKILL.md', '.codex/AGENTS.md',
+    '.agents/skills/y/SKILL.md', '.claude/skills/x/SKILL.md', '.codex/AGENTS.md', '.cursor/skills/w/SKILL.md',
     '.github/copilot-instructions.md', 'AGENTS.md', 'packages/api/CLAUDE.md', 'skills/.curated/z/SKILL.md',
   ]);
 });
@@ -239,12 +240,33 @@ test('finds rule folders, local and override files', () => {
     '.github/instructions/README.md': '',
     '.clinerules/style.md': '',
     '.clinerules/workflows/release.md': '',
+    '.roorules': '',
+    '.roo/rules/style.md': '',
+    '.roo/rules-code/tests.md': '',
+    '.roo/notes.md': '',
+    '.agents/rules/style.md': '',
+    '.agent/rules/old.md': '',
+    '.agents/workflows/release.md': '',
+    '.kiro/steering/product.md': '',
+    '.kiro/specs/feature/design.md': '',
+    'packages/web/.cursor/rules/ui.mdc': '',
+    'packages/web/.windsurf/rules/ui.md': '',
+    'packages/web/.github/instructions/x.instructions.md': '',
   });
   const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
   assert.deepEqual(found, [
-    '.claude/rules/api/style.md', '.claude/rules/testing.md', '.clinerules/style.md', '.cursor/rules/react.mdc',
-    '.github/instructions/ts.instructions.md', '.windsurfrules', 'AGENTS.override.md', 'CLAUDE.local.md',
+    '.agent/rules/old.md', '.agents/rules/style.md', '.claude/rules/api/style.md', '.claude/rules/testing.md',
+    '.clinerules/style.md', '.cursor/rules/react.mdc', '.github/instructions/ts.instructions.md',
+    '.kiro/steering/product.md', '.roo/rules-code/tests.md', '.roo/rules/style.md', '.roorules', '.windsurfrules',
+    'AGENTS.override.md', 'CLAUDE.local.md', 'packages/web/.cursor/rules/ui.mdc', 'packages/web/.windsurf/rules/ui.md',
   ]);
+});
+
+test('finds skills in every tool folder that loads them', () => {
+  const dirs = ['.github', '.windsurf', '.cline', '.kiro', '.agent', '.agents', '.claude', '.cursor', '.codex', '.gemini'];
+  const root = tempRepo(Object.fromEntries(dirs.map((dir) => [`${dir}/skills/s/SKILL.md`, ''])));
+  const found = findAgentFiles(root).map((p) => p.slice(root.length + 1)).sort();
+  assert.deepEqual(found, dirs.map((dir) => `${dir}/skills/s/SKILL.md`).sort());
 });
 
 test('flags broken markdown links, relative to the file', () => {
@@ -370,6 +392,10 @@ test('scoped rule files get the on-demand size budget', () => {
   assert.deepEqual(size('.claude/rules/all.md', ''), ['size']);
   assert.deepEqual(size('.cursor/rules/a.mdc', '---\nalwaysApply: true\n---\n'), ['size']);
   assert.deepEqual(size('.cursor/rules/b.mdc', '---\ndescription: React\nalwaysApply: false\n---\n'), []);
+  assert.deepEqual(size('.kiro/steering/api.md', '---\ninclusion: fileMatch\nfileMatchPattern: "src/api/**"\n---\n'), []);
+  assert.deepEqual(size('.kiro/steering/all.md', '---\ninclusion: always\n---\n'), ['size']);
+  assert.deepEqual(size('.windsurf/rules/manual.md', '---\ntrigger: manual\n---\n'), []);
+  assert.deepEqual(size('.windsurf/rules/all.md', '---\ntrigger: always_on\n---\n'), ['size']);
 });
 
 test('does not count imported agent files twice', () => {
@@ -437,4 +463,25 @@ test('missing-path names where a moved file went when exactly one tracked file h
     'references `src/util.ts`, which does not exist',
     'links to `src/ConfigLoader.ts`, which does not exist; did you mean `src/features/ConfigLoader.ts`?',
   ]);
+});
+
+test('lintRepo sees scripts added after an earlier run, for long-running hosts like editors', () => {
+  const root = tempRepo({ 'package.json': '{"scripts":{}}', 'AGENTS.md': '- Test: `npm run test`\n' });
+  assert.deepEqual(lintRepo(root).results[0].issues.map((i) => i.rule), ['missing-script']);
+  writeFileSync(join(root, 'package.json'), '{"scripts":{"test":"node --test"}}');
+  const { score, results } = lintRepo(root);
+  assert.equal(score, 100);
+  assert.equal(results[0].file, 'AGENTS.md');
+});
+
+test('the package entry point is the lint library', async () => {
+  const lib = await import('tidyagents');
+  assert.equal(typeof lib.lintRepo, 'function');
+  assert.equal(typeof lib.lintText, 'function');
+});
+
+test('the VS Code extension and Orca plugin carry the CLI version, since one tag releases all three', () => {
+  const version = (path) => JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')).version;
+  assert.equal(version('vscode/package.json'), version('package.json'));
+  assert.equal(version('orca-plugin.json'), version('package.json'));
 });

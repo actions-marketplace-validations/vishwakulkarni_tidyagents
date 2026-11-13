@@ -1,0 +1,7 @@
+lib/
+LICENSE
+NOTICE
+icon.png
+.vscode-test/
+node_modules/
+*.vsix
